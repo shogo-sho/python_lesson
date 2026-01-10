@@ -1,0 +1,434 @@
+:root {
+    --field-width: 500px;
+    --grid-spacing: 15px;
+    --grid-row-cells: 4;
+    --tile-size: calc((var(--field-width) - (var(--grid-spacing) * (var(--grid-row-cells) + 1))) / var(--grid-row-cells));
+
+    --color-bg: #faf8ef;
+    --color-game-container: #bbada0;
+    --color-grid-cell: rgba(238, 228, 218, 0.35);
+    --color-text-dark: #776e65;
+    --color-text-light: #f9f6f2;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-bg);
+    color: var(--color-text-dark);
+    font-family: "Nunito", sans-serif;
+    font-size: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: var(--field-width);
+    margin: 0 auto;
+}
+
+.heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.title {
+    font-size: 80px;
+    font-weight: 800;
+    margin: 0;
+    line-height: 1;
+}
+
+.scores-container {
+    display: flex;
+    gap: 5px;
+    text-align: center;
+}
+
+.score-container,
+.best-container {
+    position: relative;
+    background: #bbada0;
+    padding: 15px 10px;
+    font-size: 25px;
+    height: 25px;
+    line-height: 25px;
+    font-weight: bold;
+    border-radius: 3px;
+    color: white;
+    min-width: 70px;
+}
+
+.score-container:after,
+.best-container:after {
+    position: absolute;
+    width: 100%;
+    top: 6px;
+    left: 0;
+    content: attr(data-title);
+    font-size: 13px;
+    line-height: 13px;
+    text-transform: uppercase;
+    color: #eee4da;
+}
+
+.score-label {
+    font-size: 11px;
+    color: #eee4da;
+    text-transform: uppercase;
+    position: absolute;
+    top: 5px;
+    width: 100%;
+    left: 0;
+    line-height: 1;
+}
+
+#score,
+#best-score {
+    margin-top: 5px;
+    font-size: 22px;
+}
+
+
+.game-intro {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.game-explanation {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.restart-button {
+    background: #8f7a66;
+    border-radius: 3px;
+    padding: 0 20px;
+    text-decoration: none;
+    color: #f9f6f2;
+    height: 40px;
+    line-height: 42px;
+    cursor: pointer;
+    display: block;
+    text-align: center;
+    border: none;
+    font-weight: bold;
+    font-size: 16px;
+}
+
+.game-container {
+    position: relative;
+    padding: var(--grid-spacing);
+    cursor: default;
+    touch-action: none;
+    background: var(--color-game-container);
+    border-radius: 6px;
+    width: var(--field-width);
+    height: var(--field-width);
+    box-sizing: border-box;
+}
+
+.grid-container {
+    position: absolute;
+    z-index: 1;
+}
+
+.grid-row {
+    margin-bottom: var(--grid-spacing);
+}
+
+.grid-row:last-child {
+    margin-bottom: 0;
+}
+
+.grid-row:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.grid-cell {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    margin-right: var(--grid-spacing);
+    float: left;
+    border-radius: 3px;
+    background: var(--color-grid-cell);
+}
+
+.grid-cell:last-child {
+    margin-right: 0;
+}
+
+.tile-container {
+    position: absolute;
+    z-index: 2;
+}
+
+.tile {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    line-height: var(--tile-size);
+    position: absolute;
+    border-radius: 3px;
+    font-weight: bold;
+    font-size: 55px;
+    text-align: center;
+    transition: transform 100ms ease-in-out;
+    z-index: 10;
+}
+
+.tile-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 3px;
+    text-align: center;
+    font-weight: bold;
+    z-index: 10;
+    font-size: 55px;
+    line-height: var(--tile-size);
+}
+
+/* Transitions */
+.tile.tile-new .tile-inner {
+    animation: appear 200ms ease 100ms;
+    animation-fill-mode: backwards;
+}
+
+.tile.tile-merged .tile-inner {
+    z-index: 20;
+    animation: pop 200ms ease 100ms;
+    animation-fill-mode: backwards;
+}
+
+@keyframes appear {
+    0% {
+        opacity: 0;
+        transform: scale(0);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(0);
+    }
+
+    50% {
+        transform: scale(1.2);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Tile Colors */
+.tile-2 .tile-inner {
+    background: #eee4da;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0), inset 0 0 0 1px rgba(255, 255, 255, 0);
+}
+
+.tile-4 .tile-inner {
+    background: #ede0c8;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0), inset 0 0 0 1px rgba(255, 255, 255, 0);
+}
+
+.tile-8 .tile-inner {
+    color: #f9f6f2;
+    background: #f2b179;
+}
+
+.tile-16 .tile-inner {
+    color: #f9f6f2;
+    background: #f59563;
+}
+
+.tile-32 .tile-inner {
+    color: #f9f6f2;
+    background: #f67c5f;
+}
+
+.tile-64 .tile-inner {
+    color: #f9f6f2;
+    background: #f65e3b;
+}
+
+.tile-128 .tile-inner {
+    color: #f9f6f2;
+    background: #edcf72;
+    font-size: 45px;
+}
+
+.tile-256 .tile-inner {
+    color: #f9f6f2;
+    background: #edcc61;
+    font-size: 45px;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.238), inset 0 0 0 1px rgba(255, 255, 255, 0.143);
+}
+
+.tile-512 .tile-inner {
+    color: #f9f6f2;
+    background: #edc850;
+    font-size: 45px;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.397), inset 0 0 0 1px rgba(255, 255, 255, 0.238);
+}
+
+.tile-1024 .tile-inner {
+    color: #f9f6f2;
+    background: #edc53f;
+    font-size: 35px;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.476), inset 0 0 0 1px rgba(255, 255, 255, 0.317);
+}
+
+.tile-2048 .tile-inner {
+    color: #f9f6f2;
+    background: #edc22e;
+    font-size: 35px;
+    box-shadow: 0 0 30px 10px rgba(243, 215, 116, 0.556), inset 0 0 0 1px rgba(255, 255, 255, 0.397);
+}
+
+.tile-super .tile-inner {
+    color: #f9f6f2;
+    background: #3c3a32;
+    font-size: 30px;
+}
+
+/* Game Message (Game Over / Won) */
+.game-message {
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background: rgba(238, 228, 218, 0.73);
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    animation: fade-in 800ms ease 1200ms;
+    animation-fill-mode: both;
+}
+
+.game-message p {
+    font-size: 60px;
+    font-weight: bold;
+    height: 60px;
+    line-height: 60px;
+    margin-top: 222px;
+}
+
+.game-message .lower {
+    display: block;
+    margin-top: 59px;
+}
+
+.game-message a {
+    display: inline-block;
+    background: #8f7a66;
+    border-radius: 3px;
+    padding: 0 20px;
+    text-decoration: none;
+    color: #f9f6f2;
+    height: 40px;
+    line-height: 42px;
+    cursor: pointer;
+    margin-left: 9px;
+}
+
+.game-message.game-won {
+    background: rgba(237, 194, 46, 0.5);
+    color: #f9f6f2;
+}
+
+.game-message.game-won a.keep-playing-button {
+    display: inline-block;
+}
+
+.game-message.game-won p {
+    content: "You Win!";
+}
+
+.game-message.game-over p {
+    content: "Game Over!";
+}
+
+@keyframes fade-in {
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Responsive */
+@media screen and (max-width: 520px) {
+
+    html,
+    body {
+        font-size: 15px;
+    }
+
+    :root {
+        --field-width: 280px;
+        --grid-spacing: 10px;
+    }
+
+    .container {
+        width: 280px;
+        margin: 20px auto;
+    }
+
+    .title {
+        font-size: 27px;
+        margin-top: 15px;
+    }
+
+    .score-container,
+    .best-container {
+        margin-top: 0;
+        padding: 15px 10px;
+        min-width: 40px;
+    }
+
+    .heading {
+        margin-bottom: 10px;
+    }
+
+    .game-intro {
+        display: block;
+        box-sizing: border-box;
+        line-height: 1.65;
+    }
+
+    .restart-button {
+        width: 100%;
+        padding: 0;
+        display: block;
+        box-sizing: border-box;
+        margin-top: 2px;
+    }
+
+    .grid-container {
+        margin-top: 0;
+    }
+
+    .tile .tile-inner {
+        font-size: 35px;
+    }
+}
