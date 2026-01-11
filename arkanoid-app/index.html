@@ -65,13 +65,83 @@
             justify-content: center;
             align-items: center;
             background: rgba(0, 0, 0, 0.7);
+            z-index: 10;
+        }
+
+        #ui-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            box-sizing: border-box;
+            color: #fff;
+            font-size: 1.2rem;
+            font-weight: bold;
+            z-index: 5;
+        }
+
+        #meowth-container {
+            position: absolute;
+            bottom: -200px;
+            right: 20px;
+            text-align: center;
+            transition: bottom 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        #meowth-container.show {
+            bottom: 20px;
+        }
+
+        #meowth-msg {
+            background: #fff;
+            color: #333;
+            padding: 10px 15px;
+            border-radius: 20px;
+            position: relative;
+            font-weight: bold;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+
+        #meowth-msg::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            right: 20px;
+            border-width: 10px 10px 0;
+            border-style: solid;
+            border-color: #fff transparent;
+        }
+
+        #meowth-img {
+            font-size: 4rem;
+            /* Using emoji for simplicity as requested "Canvas extension" */
+            filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.5));
         }
     </style>
 </head>
 
 <body>
 
+    <div id="ui-bar">
+        <div id="score-display">Score: 0</div>
+        <div id="stage-display">Stage: 1/3</div>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
+
+    <div id="meowth-container">
+        <div id="meowth-msg">お見事ニャ！</div>
+        <div id="meowth-img">😸</div>
+    </div>
 
     <div id="overlay" class="overlay">
         <div id="game-over-text">GAME OVER</div>
@@ -84,12 +154,16 @@
         const overlay = document.getElementById('overlay');
         const gameOverText = document.getElementById('game-over-text');
         const restartBtn = document.getElementById('restart-btn');
+        const scoreDisplay = document.getElementById('score-display');
+        const stageDisplay = document.getElementById('stage-display');
+        const meowthContainer = document.getElementById('meowth-container');
+        const meowthMsg = document.getElementById('meowth-msg');
 
         // Game Constants
         let PADDLE_WIDTH = 100;
         let PADDLE_HEIGHT = 15;
         let BALL_RADIUS = 8;
-        let BRICK_ROW_COUNT = 3;
+        let BRICK_ROW_COUNT = 8; // Max rows potentially
         let BRICK_COLUMN_COUNT = 8;
         let BRICK_PADDING = 10;
         let BRICK_OFFSET_TOP = 50;
@@ -109,6 +183,45 @@
         let lives = 3;
         let isGameOver = false;
         let animationId;
+
+        // Stage System
+        let currentStage = 1;
+        const MAX_STAGE = 3;
+        let baseSpeed = 4;
+
+        // Level Definitions (1: Normal, 0: Empty, 2: Silver/Hard)
+        const LEVELS = {
+            1: [
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0]
+            ],
+            2: [
+                [0, 1, 1, 0, 0, 1, 1, 0],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [0, 1, 1, 1, 1, 1, 1, 0],
+                [0, 0, 1, 1, 1, 1, 0, 0],
+                [0, 0, 0, 1, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0]
+            ],
+            3: [
+                [2, 1, 2, 1, 1, 2, 1, 2],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [2, 1, 2, 1, 1, 2, 1, 2],
+                [1, 1, 1, 1, 1, 1, 1, 1],
+                [0, 2, 0, 2, 2, 0, 2, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0]
+            ]
+        };
 
         function resizeCanvas() {
             // Mobile friendly: maximize, but keep aspect ratio or just fill width
@@ -144,21 +257,41 @@
         }
 
         function initGame() {
-            isGameOver = false;
+            currentStage = 1;
+            baseSpeed = 4;
             score = 0;
             lives = 3;
+            startLevel();
+        }
+
+        function startLevel() {
+            isGameOver = false;
             overlay.style.display = 'none';
+            meowthContainer.classList.remove('show');
+
+            // Update UI
+            scoreDisplay.textContent = `Score: ${score}`;
+            stageDisplay.textContent = `Stage: ${currentStage}/${MAX_STAGE}`;
 
             // Initial Positions
             paddleX = (canvas.width - PADDLE_WIDTH) / 2;
             resetBall();
 
-            // Create Bricks
+            // Create Bricks from Level Data
+            const levelMap = LEVELS[currentStage] || LEVELS[1];
             bricks = [];
+            // Reset counts based on map size if needed, but we used fixed 8x8 max
             for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
                 bricks[c] = [];
                 for (let r = 0; r < BRICK_ROW_COUNT; r++) {
-                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                    // Map is rows then cols usually? LEVELS is [row][col]
+                    // My existing loop is c (col) then r (row).
+                    // Let's read row r, col c
+                    let type = 0;
+                    if (r < levelMap.length && c < levelMap[r].length) {
+                        type = levelMap[r][c];
+                    }
+                    bricks[c][r] = { x: 0, y: 0, status: 1, type: type };
                 }
             }
 
@@ -169,8 +302,12 @@
         function resetBall() {
             x = canvas.width / 2;
             y = canvas.height - 40;
-            dx = 4 * (Math.random() > 0.5 ? 1 : -1);
-            dy = -4;
+            // Speed increases by 10% each stage (baseSpeed * 1.1^(stage-1))
+            const speedMultiplier = Math.pow(1.1, currentStage - 1);
+            let speed = baseSpeed * speedMultiplier;
+
+            dx = speed * (Math.random() > 0.5 ? 1 : -1);
+            dy = -speed;
         }
 
         // Controls
@@ -218,23 +355,75 @@
 
         // Physics & Logic
         function collisionDetection() {
+            let activeBricks = 0;
+
             for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
                 for (let r = 0; r < BRICK_ROW_COUNT; r++) {
                     let b = bricks[c][r];
-                    if (b.status === 1) {
+                    // Count active breakable bricks
+                    if (b.status === 1 && b.type === 1) {
+                        activeBricks++;
+                    }
+
+                    if (b.status === 1 && b.type !== 0) {
                         if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + BRICK_HEIGHT) {
                             dy = -dy;
-                            b.status = 0;
-                            score++;
 
-                            // Check Win
-                            if (score === BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) {
-                                gameOver(true);
+                            // Only break if type is 1 (Normal)
+                            if (b.type === 1) {
+                                b.status = 0;
+                                score++;
+                                scoreDisplay.textContent = `Score: ${score}`;
+                                activeBricks--;
+                            } else if (b.type === 2) {
+                                // Unbreakable: Sound effect?
+                                // Just bounce (handled above)
                             }
                         }
                     }
                 }
             }
+
+            if (activeBricks === 0 && !isGameOver) {
+                stageClear();
+            }
+        }
+
+        function stageClear() {
+            // Stop animation loop? No, just pause updating logic via flag or simple return
+            // But we want to show meowth
+            // Let's rely on isGameOver flag as "paused state" or separate flag
+            // Re-using isGameOver might show "Game Over" text.
+            // Let's use a specialized state.
+
+            // For simplicity:
+            cancelAnimationFrame(animationId);
+
+            meowthMsg.textContent = "お見事ニャ！";
+            meowthContainer.classList.add('show');
+
+            overlay.style.display = 'flex';
+            gameOverText.textContent = "STAGE CLEAR!";
+            gameOverText.style.color = "#4CAF50";
+            restartBtn.style.display = 'none'; // Hide button during transition
+
+            setTimeout(() => {
+                currentStage++;
+                if (currentStage > MAX_STAGE) {
+                    gameClear();
+                } else {
+                    startLevel();
+                }
+            }, 2500);
+        }
+
+        function gameClear() {
+            meowthMsg.textContent = "完全制覇だニャ！";
+            meowthContainer.classList.add('show');
+            gameOverText.textContent = "ALL CLEARED!";
+            gameOverText.style.color = "#FFD700"; // Gold
+            restartBtn.style.display = 'block';
+            restartBtn.textContent = 'Play Again';
         }
 
         function gameOver(win) {
@@ -284,9 +473,23 @@
 
                         ctx.beginPath();
                         ctx.rect(brickX, brickY, brickWidth, BRICK_HEIGHT);
-                        // Gradient or alternate colors
-                        ctx.fillStyle = `hsl(${c * 45}, 70%, 50%)`;
+                        // Gradient or alternate colors based on Type
+                        if (bricks[c][r].type === 2) {
+                            ctx.fillStyle = '#C0C0C0'; // Silver
+                            ctx.shadowColor = '#fff';
+                        } else {
+                            ctx.fillStyle = `hsl(${c * 45}, 70%, 50%)`;
+                            ctx.shadowColor = 'transparent';
+                        }
                         ctx.fill();
+
+                        // Border for silver
+                        if (bricks[c][r].type === 2) {
+                            ctx.strokeStyle = '#555';
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
+                        }
+
                         ctx.closePath();
                     }
                 }
@@ -319,8 +522,8 @@
                     dy = -dy;
                     // Add some English (spin) based on where it hit?
                     // Speed up slightly?
-                    dy = dy * 1.05;
-                    if (Math.abs(dy) > 8) dy = (dy > 0 ? 8 : -8);
+                    // dy = dy * 1.05; // Removed to keep consistent stage speed
+                    // if (Math.abs(dy) > 8) dy = (dy > 0 ? 8 : -8);
 
                 } else if (y + dy > canvas.height - BALL_RADIUS) {
                     // Ball passed paddle
