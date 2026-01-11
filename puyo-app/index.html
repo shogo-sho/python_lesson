@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puyo Game v3 - Rotation</title>
+    <title>Puyo Game v4 - Next Queue</title>
     <style>
         :root {
             --cell-size: 40px;
@@ -32,6 +32,13 @@
             font-size: 1.5rem;
         }
 
+        /* Layout */
+        #main-area {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+
         /* Game Board Area */
         #game-container {
             position: relative;
@@ -51,6 +58,39 @@
             background-size: var(--cell-size) var(--cell-size);
         }
 
+        /* Sidebar */
+        #sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 80px;
+        }
+
+        .preview-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .next-label {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .preview-box {
+            width: calc(var(--cell-size) * 2);
+            /* slightly wider to breathe */
+            height: calc(var(--cell-size) * 2.5);
+            background-color: #000;
+            border: 2px solid var(--border-color);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
         /* The Puyo */
         .puyo {
             width: var(--cell-size);
@@ -61,7 +101,6 @@
             padding: 2px;
             box-sizing: border-box;
             transition: transform 0.05s linear;
-            /* Faster transition for responsive feel */
         }
 
         /* Animation for disappearing puyos */
@@ -138,7 +177,6 @@
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
-            /* allow wrapping on small screens */
             justify-content: center;
         }
 
@@ -161,7 +199,6 @@
 
         #btn-rotate {
             background: #e67e22;
-            /* Different color for rotate */
             border-color: #d35400;
         }
 
@@ -175,9 +212,22 @@
 
     <h1>Puyo Drop & Stack</h1>
 
-    <div id="game-container">
-        <div id="board">
-            <!-- Game elements will be injected here -->
+    <div id="main-area">
+        <div id="game-container">
+            <div id="board">
+                <!-- Game elements will be injected here -->
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <div class="preview-group">
+                <div class="next-label">NEXT</div>
+                <div id="next-box" class="preview-box"></div>
+            </div>
+            <div class="preview-group">
+                <div class="next-label">NEXT NEXT</div>
+                <div id="next-next-box" class="preview-box"></div>
+            </div>
         </div>
     </div>
 
@@ -198,18 +248,19 @@
         const COLORS = ['red', 'blue', 'green', 'yellow'];
 
         // === Game State ===
-        // grid[row][col] -> null or string (color class name)
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
 
         // Active Piece
-        // x, y is the position of the MAIN (Axis) puyo.
-        // rotation: 0=Up(child above), 1=Right(child right), 2=Down(child below), 3=Left(child left)
         let activePiece = {
             x: 2,
             y: 0,
-            colors: ['red', 'red'], // [axis_color, satellite_color]
+            colors: ['red', 'red'], // [axis, satellite] (in spawn logic: [bottom, top])
             rotation: 0
         };
+
+        // Queue for Next Pieces: Array of color pairs [color1, color2]
+        // [0] is NEXT, [1] is NEXT NEXT
+        let pieceQueue = [];
 
         let gameInterval = null;
         let isGameOver = false;
@@ -217,6 +268,9 @@
 
         // === DOM Elements ===
         const boardEl = document.getElementById('board');
+        const nextBoxEl = document.getElementById('next-box');
+        const nextNextBoxEl = document.getElementById('next-next-box');
+
         const btnLeft = document.getElementById('btn-left');
         const btnRight = document.getElementById('btn-right');
         const btnDown = document.getElementById('btn-down');
@@ -231,25 +285,19 @@
             return COLORS[Math.floor(Math.random() * COLORS.length)];
         }
 
+        // Returns a pair of random colors
+        function getRandomPair() {
+            return [getRandomColor(), getRandomColor()];
+        }
+
         function createPuyoElement(color, x, y, isVanishing = false) {
             const el = document.createElement('div');
             el.className = `puyo puyo-${color}`;
             if (isVanishing) el.classList.add('vanishing');
-            // Check if x, y have changed recently for smooth animation? 
-            // Standard CSS transition handles moves.
 
-            // Adjust for vanishing scale origin center? default is center.
             el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px)`;
+
             if (isVanishing) {
-                // We want to keep the translate but add scale. 
-                // However, CSS transform overwrites. So we need to include scale here or use a wrapper.
-                // The CSS rule 'transform: scale(1.5)' in .vanishing won't work if inline style has translate.
-                // Let's modify the inline style if vanishing.
-                el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(0)`;
-                // actually 'scale(0)' to shrink, or 'scale(1.5)' and opacity 0.
-                // Let's rely on class order? No, inline beats class.
-                // We must apply the transform in JS or use !important in CSS.
-                // Let's use JS to set the final state.
                 el.style.opacity = '0';
                 el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(1.5)`;
             }
@@ -285,12 +333,24 @@
         function spawnPuyo() {
             if (isGameOver) return;
 
-            const newColors = [getRandomColor(), getRandomColor()];
-            // Spawn: Axis at (2, 1), Satellite at (2, 0) (Rotation 0)
+            // Ensure queue has enough items
+            while (pieceQueue.length < 2) {
+                pieceQueue.push(getRandomPair());
+            }
+
+            // Pop the next piece
+            const nextColors = pieceQueue.shift();
+            // Refill queue
+            pieceQueue.push(getRandomPair());
+
+            // Render Preview immediately after taking from queue
+            renderPreview();
+
+            // Spawn: Axis at (2, 1), Satellite at (2, 0)
             activePiece = {
                 x: 2,
                 y: 1,
-                colors: newColors,
+                colors: nextColors,
                 rotation: 0
             };
 
@@ -317,11 +377,11 @@
         function isValidPosition(x, y) {
             if (x < 0 || x >= COLS) return false;
             if (y >= ROWS) return false;
+            // grid[y][x] check only if y >= 0
             if (y >= 0 && grid[y][x] !== null) return false;
             return true;
         }
 
-        // Check if the whole piece (axis + satellite) is valid
         function isActiveValid(ax, ay, rot) {
             // Check axis
             if (!isValidPosition(ax, ay)) return false;
@@ -342,37 +402,31 @@
             let nextX = activePiece.x;
             let nextY = activePiece.y;
 
-            // Basic check
             if (isActiveValid(nextX, nextY, nextRot)) {
                 activePiece.rotation = nextRot;
                 render();
                 return;
             }
 
-            // Wall Kicks / Floor Kicks
-            // Try shifting Left
+            // Wall Kicks
             if (isActiveValid(nextX - 1, nextY, nextRot)) {
                 activePiece.x -= 1;
                 activePiece.rotation = nextRot;
                 render();
                 return;
             }
-            // Try shifting Right
             if (isActiveValid(nextX + 1, nextY, nextRot)) {
                 activePiece.x += 1;
                 activePiece.rotation = nextRot;
                 render();
                 return;
             }
-            // Try shifting Up (Floor kick) logic usually for rotation stuck at bottom
             if (isActiveValid(nextX, nextY - 1, nextRot)) {
                 activePiece.y -= 1;
                 activePiece.rotation = nextRot;
                 render();
                 return;
             }
-
-            // If all fail, do not rotate
         }
 
         function move(dx, dy) {
@@ -391,7 +445,7 @@
         }
 
         async function drop() {
-            if (isGameOver || isProcessing) return; // Prevent double drop logic
+            if (isGameOver || isProcessing) return;
 
             if (!move(0, 1)) {
                 await lockPiece();
@@ -408,18 +462,15 @@
 
             // Lock Axis
             if (y >= 0 && y < ROWS) grid[y][x] = colors[0];
-            // Lock Satellite (child)
+            // Lock Satellite
             if (sy >= 0 && sy < ROWS) grid[sy][sx] = colors[1];
 
             render(true);
             await sleep(100);
 
             // === 1. Split & Drop Logic ===
-            // Immediately apply gravity to let floating pieces (from split) drop.
-            // This ensures they settle before we check for matches.
             applyGravity();
             render(true);
-            // If dropping happened, wait a bit
             await sleep(200);
 
             // === 2. Chain Reaction Loop ===
@@ -427,18 +478,15 @@
                 const matches = findMatches();
                 if (matches.length === 0) break;
 
-                // Highlight matches
                 render(true, matches);
                 await sleep(500);
 
-                // Remove matches
                 for (const { r, c } of matches) {
                     grid[r][c] = null;
                 }
                 render(true);
                 await sleep(200);
 
-                // Apply Gravity after clear
                 applyGravity();
                 render(true);
                 await sleep(300);
@@ -496,11 +544,72 @@
             }
         }
 
-        // Render function: hideActive hides the floating piece. matchingCells is list of {r,c} to animate.
+        // === Rendering ===
+
+        function createPreviewPuyo(color, yOffset) {
+            const el = document.createElement('div');
+            el.className = `puyo puyo-${color}`;
+            // Position relative to box center mostly.
+            // box is 2x2.5 cells.
+            // Let's position them centered.
+            // We want them vertically stacked. 
+            // Top puyo (index 1) at top, Bottom (index 0) at bottom?
+            // "colors" array is [bottom, top] (from spawn logic)
+            // So index 0 is bottom, index 1 is top.
+
+            // Preview Visualization:
+            // Standard Puyo preview: Top is Next, Bottom is NextNext? 
+            // No, each preview shows a PAIR.
+            // Within a pair, index 1 is usually the "child" (top) and index 0 is "axis" (bottom).
+            // We should draw them stacked.
+            // Top one is higher Y.
+
+            el.style.position = 'absolute';
+            el.style.left = '50%';
+            el.style.transform = `translateX(-50%) translate(0, ${yOffset * CELL_SIZE}px)`;
+
+            // Adjust visual look since we are not using grid coordinates here
+            // Removing the standard 'transform' from createPuyoElement logic and making custom one for preview?
+            // Actually reusing createPuyoElement logic is hard because of translate(x,y).
+            // So we manually style here.
+
+            const inner = document.createElement('div');
+            inner.className = 'puyo-inner';
+            const eyeL = document.createElement('div'); eyeL.className = 'eye left';
+            const eyeR = document.createElement('div'); eyeR.className = 'eye right';
+            inner.appendChild(eyeL); inner.appendChild(eyeR);
+            el.appendChild(inner);
+            return el;
+        }
+
+        function renderPreview() {
+            // Next
+            nextBoxEl.innerHTML = '';
+            if (pieceQueue.length > 0) {
+                const colors = pieceQueue[0];
+                // colors[1] is TOP, colors[0] is BOTTOM.
+                // Draw TOP at y=0.2 (slight padding)
+                // Draw BOTTOM at y=1.2
+                const topEl = createPreviewPuyo(colors[1], 0.2);
+                const botEl = createPreviewPuyo(colors[0], 1.2);
+                nextBoxEl.appendChild(topEl);
+                nextBoxEl.appendChild(botEl);
+            }
+
+            // Next Next
+            nextNextBoxEl.innerHTML = '';
+            if (pieceQueue.length > 1) {
+                const colors = pieceQueue[1];
+                const topEl = createPreviewPuyo(colors[1], 0.2);
+                const botEl = createPreviewPuyo(colors[0], 1.2);
+                nextNextBoxEl.appendChild(topEl);
+                nextNextBoxEl.appendChild(botEl);
+            }
+        }
+
         function render(hideActive = false, matchingCells = []) {
             boardEl.innerHTML = '';
 
-            // Helper to check if a cell is in matchingCells
             const isMatching = (r, c) => matchingCells.some(m => m.r === r && m.c === c);
 
             // 1. Render Grid
@@ -516,11 +625,9 @@
 
             // 2. Render Active Piece
             if (!isGameOver && !hideActive && !isProcessing) {
-                // Axis
                 const axisEl = createPuyoElement(activePiece.colors[0], activePiece.x, activePiece.y);
                 boardEl.appendChild(axisEl);
 
-                // Satellite
                 const [sdx, sdy] = getSatelliteOffset(activePiece.rotation);
                 const satEl = createPuyoElement(activePiece.colors[1], activePiece.x + sdx, activePiece.y + sdy);
                 boardEl.appendChild(satEl);
@@ -551,6 +658,10 @@
         if (btnRotate) btnRotate.addEventListener('click', () => rotate());
 
         // === Init ===
+        // Seed queue
+        pieceQueue.push(getRandomPair());
+        pieceQueue.push(getRandomPair());
+
         spawnPuyo();
         gameInterval = setInterval(drop, GRAVITY_MS);
 
