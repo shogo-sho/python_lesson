@@ -13,6 +13,24 @@
             --border-color: #444;
         }
 
+        /* Flash Animation */
+        @keyframes flashEffect {
+            0% {
+                opacity: 1;
+                filter: brightness(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                filter: brightness(3);
+            }
+
+            100% {
+                opacity: 1;
+                filter: brightness(1);
+            }
+        }
+
         body {
             background-color: var(--bg-color);
             color: #eee;
@@ -103,11 +121,16 @@
             transition: transform 0.05s linear;
         }
 
+        /* Flashing Animation */
+        .puyo.flashing {
+            animation: flashEffect 0.2s infinite;
+        }
+
         /* Animation for disappearing puyos */
         .puyo.vanishing {
             transition: opacity 0.4s ease-out, transform 0.4s ease-out;
             opacity: 0;
-            transform: scale(1.5);
+            transform: scale(1.6);
             z-index: 10;
         }
 
@@ -290,16 +313,21 @@
             return [getRandomColor(), getRandomColor()];
         }
 
-        function createPuyoElement(color, x, y, isVanishing = false) {
+        function createPuyoElement(color, x, y, animationState = '') {
             const el = document.createElement('div');
             el.className = `puyo puyo-${color}`;
-            if (isVanishing) el.classList.add('vanishing');
+
+            if (animationState === 'flashing') {
+                el.classList.add('flashing');
+            } else if (animationState === 'vanishing') {
+                el.classList.add('vanishing');
+            }
 
             el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px)`;
 
-            if (isVanishing) {
+            if (animationState === 'vanishing') {
                 el.style.opacity = '0';
-                el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(1.5)`;
+                el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(1.6)`;
             }
 
             const inner = document.createElement('div');
@@ -478,14 +506,20 @@
                 const matches = findMatches();
                 if (matches.length === 0) break;
 
-                render(true, matches);
+                // 1. Flash Animation (0.5s)
+                render(true, matches, 'flashing');
                 await sleep(500);
 
+                // 2. Vanish Animation (Scale up & Fade out)
+                render(true, matches, 'vanishing');
+                await sleep(500);
+
+                // 3. Remove matches
                 for (const { r, c } of matches) {
                     grid[r][c] = null;
                 }
                 render(true);
-                await sleep(200);
+                await sleep(300);
 
                 applyGravity();
                 render(true);
@@ -557,21 +591,9 @@
             // "colors" array is [bottom, top] (from spawn logic)
             // So index 0 is bottom, index 1 is top.
 
-            // Preview Visualization:
-            // Standard Puyo preview: Top is Next, Bottom is NextNext? 
-            // No, each preview shows a PAIR.
-            // Within a pair, index 1 is usually the "child" (top) and index 0 is "axis" (bottom).
-            // We should draw them stacked.
-            // Top one is higher Y.
-
             el.style.position = 'absolute';
             el.style.left = '50%';
             el.style.transform = `translateX(-50%) translate(0, ${yOffset * CELL_SIZE}px)`;
-
-            // Adjust visual look since we are not using grid coordinates here
-            // Removing the standard 'transform' from createPuyoElement logic and making custom one for preview?
-            // Actually reusing createPuyoElement logic is hard because of translate(x,y).
-            // So we manually style here.
 
             const inner = document.createElement('div');
             inner.className = 'puyo-inner';
@@ -587,9 +609,6 @@
             nextBoxEl.innerHTML = '';
             if (pieceQueue.length > 0) {
                 const colors = pieceQueue[0];
-                // colors[1] is TOP, colors[0] is BOTTOM.
-                // Draw TOP at y=0.2 (slight padding)
-                // Draw BOTTOM at y=1.2
                 const topEl = createPreviewPuyo(colors[1], 0.2);
                 const botEl = createPreviewPuyo(colors[0], 1.2);
                 nextBoxEl.appendChild(topEl);
@@ -607,7 +626,7 @@
             }
         }
 
-        function render(hideActive = false, matchingCells = []) {
+        function render(hideActive = false, matchingCells = [], animationState = '') {
             boardEl.innerHTML = '';
 
             const isMatching = (r, c) => matchingCells.some(m => m.r === r && m.c === c);
@@ -617,7 +636,7 @@
                 for (let c = 0; c < COLS; c++) {
                     const color = grid[r][c];
                     if (color) {
-                        const el = createPuyoElement(color, c, r, isMatching(r, c));
+                        const el = createPuyoElement(color, c, r, isMatching(r, c) ? animationState : '');
                         boardEl.appendChild(el);
                     }
                 }
