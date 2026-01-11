@@ -182,7 +182,11 @@
         let score = 0;
         let lives = 3;
         let isGameOver = false;
+        let isStageClear = false; // Separate flag for stage clear interaction
         let animationId;
+
+        // Mechanics
+        let ballOnPaddle = true;
 
         // Stage System
         let currentStage = 1;
@@ -266,6 +270,7 @@
 
         function startLevel() {
             isGameOver = false;
+            isStageClear = false;
             overlay.style.display = 'none';
             meowthContainer.classList.remove('show');
 
@@ -280,7 +285,10 @@
             // Create Bricks from Level Data
             const levelMap = LEVELS[currentStage] || LEVELS[1];
             bricks = [];
-            // Reset counts based on map size if needed, but we used fixed 8x8 max
+            // Calculate offsets to center the grid
+            // Grid width = 8 * (width + padding)
+            // Lets just use standard layout logic, provided centering is roughly ok.
+
             for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
                 bricks[c] = [];
                 for (let r = 0; r < BRICK_ROW_COUNT; r++) {
@@ -300,30 +308,46 @@
         }
 
         function resetBall() {
+            ballOnPaddle = true;
             x = canvas.width / 2;
             y = canvas.height - 40;
-            // Speed increases by 10% each stage (baseSpeed * 1.1^(stage-1))
+
+            // Calculate speed but don't apply yet
             const speedMultiplier = Math.pow(1.1, currentStage - 1);
             let speed = baseSpeed * speedMultiplier;
 
+            // Stored velocity for launch
             dx = speed * (Math.random() > 0.5 ? 1 : -1);
             dy = -speed;
+        }
+
+        function launchBall() {
+            if (ballOnPaddle && !isGameOver && !isStageClear) {
+                ballOnPaddle = false;
+            }
         }
 
         // Controls
         document.addEventListener('keydown', keyDownHandler, false);
         document.addEventListener('keyup', keyUpHandler, false);
         document.addEventListener('mousemove', mouseMoveHandler, false);
+        document.addEventListener('click', launchBall, false); // Click to launch
 
         // Touch Controls
         canvas.addEventListener('touchstart', touchHandler, { passive: false });
-        canvas.addEventListener('touchmove', touchHandler, { passive: false });
+        canvas.addEventListener('touchmove', touchHandler, { passive: false }); // Touchend for launch?
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            launchBall();
+        }, { passive: false });
 
         function keyDownHandler(e) {
             if (e.key === 'Right' || e.key === 'ArrowRight') {
                 rightPressed = true;
             } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
                 leftPressed = true;
+            } else if (e.code === 'Space') {
+                launchBall();
             }
         }
 
@@ -367,6 +391,12 @@
 
                     if (b.status === 1 && b.type !== 0) {
                         if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + BRICK_HEIGHT) {
+
+                            // Simple bounce correction
+                            // To prevent tunneling or wrong-side bounce, simpler logic:
+                            // If we hit, we reverse Y usually. But if we hit side, reverse X?
+                            // For this task, sticking to simpler dy reversal is usually "fair enough" if step is small.
+                            // But let's strictly check:
                             dy = -dy;
 
                             // Only break if type is 1 (Normal)
@@ -376,27 +406,22 @@
                                 scoreDisplay.textContent = `Score: ${score}`;
                                 activeBricks--;
                             } else if (b.type === 2) {
-                                // Unbreakable: Sound effect?
-                                // Just bounce (handled above)
+                                // Silver: Bounce only.
+                                // Optional: Play sound
                             }
                         }
                     }
                 }
             }
 
-            if (activeBricks === 0 && !isGameOver) {
+            if (activeBricks === 0) {
                 stageClear();
             }
         }
 
         function stageClear() {
-            // Stop animation loop? No, just pause updating logic via flag or simple return
-            // But we want to show meowth
-            // Let's rely on isGameOver flag as "paused state" or separate flag
-            // Re-using isGameOver might show "Game Over" text.
-            // Let's use a specialized state.
-
-            // For simplicity:
+            if (isStageClear) return;
+            isStageClear = true;
             cancelAnimationFrame(animationId);
 
             meowthMsg.textContent = "お見事ニャ！";
@@ -405,7 +430,7 @@
             overlay.style.display = 'flex';
             gameOverText.textContent = "STAGE CLEAR!";
             gameOverText.style.color = "#4CAF50";
-            restartBtn.style.display = 'none'; // Hide button during transition
+            restartBtn.style.display = 'none';
 
             setTimeout(() => {
                 currentStage++;
@@ -497,54 +522,73 @@
         }
 
         function draw() {
-            if (isGameOver) return;
+            if (isGameOver || isStageClear) return;
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             drawBricks();
             drawBall();
             drawPaddle();
-            collisionDetection();
 
-            // Ball Physics
-            if (x + dx > canvas.width - BALL_RADIUS || x + dx < BALL_RADIUS) {
-                dx = -dx;
-            }
-            if (y + dy < BALL_RADIUS) {
-                dy = -dy;
-            } else if (y + dy > canvas.height - BALL_RADIUS - 10) { // Check bottom zone
-                // Paddle Collision
-                // Simple box collision for paddle Y range
-                if (y + dy > canvas.height - PADDLE_HEIGHT - 10 - BALL_RADIUS &&
-                    x > paddleX && x < paddleX + PADDLE_WIDTH) {
+            // Ball Control
+            if (ballOnPaddle) {
+                x = paddleX + PADDLE_WIDTH / 2;
+                y = canvas.height - PADDLE_HEIGHT - BALL_RADIUS - 2;
 
-                    // Ball hit paddle
+                // Hints
+                ctx.font = "16px Arial";
+                ctx.fillStyle = "#fff";
+                ctx.textAlign = "center";
+                ctx.fillText("Click or Space to Start", canvas.width / 2, canvas.height / 2);
+            } else {
+                // Physics only when launched
+                collisionDetection(); // Check bricks
+
+                // Ball Physics
+                if (x + dx > canvas.width - BALL_RADIUS || x + dx < BALL_RADIUS) {
+                    dx = -dx;
+                }
+                if (y + dy < BALL_RADIUS) {
                     dy = -dy;
-                    // Add some English (spin) based on where it hit?
-                    // Speed up slightly?
-                    // dy = dy * 1.05; // Removed to keep consistent stage speed
-                    // if (Math.abs(dy) > 8) dy = (dy > 0 ? 8 : -8);
+                } else if (y + dy > canvas.height - BALL_RADIUS - 10) { // Check bottom zone
+                    // Paddle Collision
+                    // Simple box collision for paddle Y range
+                    if (y + dy > canvas.height - PADDLE_HEIGHT - 10 - BALL_RADIUS &&
+                        x > paddleX && x < paddleX + PADDLE_WIDTH) {
 
-                } else if (y + dy > canvas.height - BALL_RADIUS) {
-                    // Ball passed paddle
-                    lives--;
-                    if (!lives) {
-                        gameOver(false);
-                        return;
-                    } else {
-                        // Reset Ball Position Only if lives left? Or wait?
-                        // For this simple version, reset ball but keep game going
-                        x = canvas.width / 2;
-                        y = canvas.height - 30;
-                        dx = 4;
-                        dy = -4;
-                        paddleX = (canvas.width - PADDLE_WIDTH) / 2;
+                        // Ball hit paddle
+                        // Calculate hit position relative to center (0.0 to 1.0)
+                        let hitPoint = x - (paddleX + PADDLE_WIDTH / 2);
+                        // Normalize it (-1 to 1)
+                        hitPoint = hitPoint / (PADDLE_WIDTH / 2);
+
+                        // Reflection angle
+                        let angle = hitPoint * (Math.PI / 3); // Max 60 degrees
+
+                        // Speed magnitude
+                        let speed = Math.sqrt(dx * dx + dy * dy);
+                        // Slight increase?
+                        // speed = Math.min(speed * 1.02, 12); 
+
+                        // Set new vectors
+                        dx = speed * Math.sin(angle);
+                        dy = -speed * Math.cos(angle);
+
+                    } else if (y + dy > canvas.height - BALL_RADIUS) {
+                        // Ball passed paddle
+                        lives--;
+                        if (!lives) {
+                            gameOver(false);
+                            return;
+                        } else {
+                            resetBall(); // Resets to pad
+                        }
                     }
                 }
-            }
 
-            x += dx;
-            y += dy;
+                x += dx;
+                y += dy;
+            }
 
             // Paddle Movement
             if (rightPressed && paddleX < canvas.width - PADDLE_WIDTH) {
