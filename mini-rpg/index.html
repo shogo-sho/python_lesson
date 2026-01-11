@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Text RPG</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #00ff41;
+            /* CRT Green */
+            --accent-color: #ff0055;
+            --border-color: #333;
+            --font-family: 'Courier New', Courier, monospace;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            border: 2px solid var(--text-color);
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+            background-color: #000;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 2px dashed var(--text-color);
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        #status-area {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+        }
+
+        .stat-box {
+            text-align: center;
+        }
+
+        #log-area {
+            height: 200px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #111;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .log-damage {
+            color: var(--accent-color);
+        }
+
+        .log-heal {
+            color: cyan;
+        }
+
+        .log-item {
+            color: yellow;
+        }
+
+        #controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: transparent;
+            border: 1px solid var(--text-color);
+            color: var(--text-color);
+            padding: 15px;
+            font-family: var(--font-family);
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: var(--text-color);
+            color: var(--bg-color);
+            box-shadow: 0 0 10px var(--text-color);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #555;
+            color: #555;
+        }
+
+        #save-load-area {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            border-top: 2px dashed var(--text-color);
+            padding-top: 10px;
+        }
+
+        .system-btn {
+            font-size: 0.8em;
+            padding: 5px 10px;
+        }
+
+        /* Scanline effect */
+        body::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 2;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <header>
+            <h1>Retro Quest</h1>
+            <div id="stage-display">STAGE: 1 - 森</div>
+        </header>
+
+        <div id="status-area">
+            <div class="stat-box">LV: <span id="level">1</span></div>
+            <div class="stat-box">HP: <span id="hp">20</span> / <span id="max-hp">20</span></div>
+            <div class="stat-box">EXP: <span id="exp">0</span> / <span id="next-exp">10</span></div>
+            <div class="stat-box">G: <span id="gold">0</span></div>
+        </div>
+
+        <div id="enemy-area"
+            style="text-align: center; margin-bottom: 20px; height: 1.2em; color: var(--accent-color);">
+            <!-- Enemy info will appear here -->
+            <span id="enemy-name">No Enemy</span> (HP: <span id="enemy-hp">0</span>)
+        </div>
+
+        <div id="log-area">
+            <div class="log-entry">ようこそ、冒険の世界へ...</div>
+        </div>
+
+        <div id="controls">
+            <button id="btn-search" onclick="game.search()">探索する</button>
+            <button id="btn-attack" onclick="game.attack()" disabled>攻撃</button>
+            <button id="btn-heal" onclick="game.heal()" disabled>回復 (5G)</button>
+            <button id="btn-run" onclick="game.run()" disabled>逃げる</button>
+        </div>
+
+        <div id="save-load-area">
+            <button class="system-btn" onclick="game.save()">SAVE</button>
+            <button class="system-btn" onclick="game.load()">LOAD</button>
+            <button class="system-btn" onclick="game.reset()">RESET</button>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'retro_rpg_save';
+
+        const STAGES = [
+            { id: 1, name: "森", enemyMinHp: 10, enemyMaxHp: 20, exp: 5, gold: 3, boss: false },
+            { id: 2, name: "洞窟", enemyMinHp: 30, enemyMaxHp: 50, exp: 12, gold: 8, boss: false },
+            { id: 3, name: "魔王城", enemyMinHp: 80, enemyMaxHp: 120, exp: 30, gold: 20, boss: true }
+        ];
+
+        const ENEMIES = [
+            { name: "スライム", stage: 1 }, { name: "コウモリ", stage: 1 }, { name: "ゴブリン", stage: 1 },
+            { name: "スケルトン", stage: 2 }, { name: "オーク", stage: 2 }, { name: "岩男", stage: 2 },
+            { name: "ドラゴン", stage: 3 }, { name: "ダークナイト", stage: 3 }, { name: "魔王", stage: 3, boss: true } // Stage 3 specific
+        ];
+
+        class Game {
+            constructor() {
+                this.state = {
+                    level: 1,
+                    currentHp: 20,
+                    maxHp: 20,
+                    exp: 0,
+                    nextExp: 10,
+                    gold: 0,
+                    stageId: 1,
+                    inBattle: false,
+                    currentEnemy: null
+                };
+                this.logEl = document.getElementById('log-area');
+                this.audioCtx = null;
+            }
+
+            init() {
+                this.load();
+                this.updateUI();
+            }
+
+            log(message, type = '') {
+                const div = document.createElement('div');
+                div.className = `log-entry ${type}`;
+                div.textContent = `> ${message}`;
+                this.logEl.appendChild(div);
+                this.logEl.scrollTop = this.logEl.scrollHeight;
+            }
+
+            updateUI() {
+                document.getElementById('level').textContent = this.state.level;
+                document.getElementById('hp').textContent = this.state.currentHp;
+                document.getElementById('max-hp').textContent = this.state.maxHp;
+                document.getElementById('exp').textContent = this.state.exp;
+                document.getElementById('next-exp').textContent = this.state.nextExp;
+                document.getElementById('gold').textContent = this.state.gold;
+
+                const stage = STAGES.find(s => s.id === this.state.stageId);
+                document.getElementById('stage-display').textContent = `STAGE: ${stage.id} - ${stage.name}`;
+
+                if (this.state.inBattle && this.state.currentEnemy) {
+                    document.getElementById('enemy-name').textContent = this.state.currentEnemy.name;
+                    document.getElementById('enemy-hp').textContent = this.state.currentEnemy.hp;
+
+                    document.getElementById('btn-search').disabled = true;
+                    document.getElementById('btn-attack').disabled = false;
+                    document.getElementById('btn-heal').disabled = false;
+                    document.getElementById('btn-run').disabled = false;
+                } else {
+                    document.getElementById('enemy-name').textContent = "No Enemy";
+                    document.getElementById('enemy-hp').textContent = "-";
+
+                    document.getElementById('btn-search').disabled = false;
+                    document.getElementById('btn-attack').disabled = true;
+                    document.getElementById('btn-heal').disabled = true;
+                    document.getElementById('btn-run').disabled = true;
+                }
+            }
+
+            search() {
+                if (this.state.inBattle) return;
+
+                // Simple random encounter logic
+                const encounterRoll = Math.random();
+                if (encounterRoll < 0.3) {
+                    this.log("何も見つからなかった...");
+                } else if (encounterRoll < 0.4) {
+                    this.log("ポーションを見つけた！ HPが10回復！", "log-heal");
+                    this.healAmount(10);
+                } else {
+                    this.startBattle();
+                }
+            }
+
+            startBattle() {
+                const stageInfo = STAGES.find(s => s.id === this.state.stageId);
+                // Filter enemies by stage
+                let possibleEnemies = ENEMIES.filter(e => e.stage === this.state.stageId);
+
+                // For stage 3, special boss logic could be here, but let's keep it simple random for now
+                const enemyTemplate = possibleEnemies[Math.floor(Math.random() * possibleEnemies.length)];
+
+                // Calc stats based on stage
+                const hpBase = stageInfo.enemyMinHp;
+                const hpRange = stageInfo.enemyMaxHp - stageInfo.enemyMinHp;
+                const hp = Math.floor(hpBase + Math.random() * hpRange);
+
+                this.state.currentEnemy = {
+                    name: enemyTemplate.name,
+                    hp: hp,
+                    maxHp: hp,
+                    attack: this.state.stageId * 3 // Simple scaling
+                };
+                this.state.inBattle = true;
+                this.log(`${this.state.currentEnemy.name} があらわれた！`, "log-damage");
+                this.updateUI();
+            }
+
+            attack() {
+                if (!this.state.inBattle) return;
+
+                // Player Turn
+                const damage = Math.floor(this.state.level * 3 + Math.random() * 5);
+                this.state.currentEnemy.hp -= damage;
+                this.log(`あなたの攻撃！ ${this.state.currentEnemy.name} に ${damage} のダメージ！`);
+
+                if (this.state.currentEnemy.hp <= 0) {
+                    this.winBattle();
+                } else {
+                    // Enemy Turn
+                    setTimeout(() => this.enemyTurn(), 500);
+                }
+                this.updateUI();
+            }
+
+            enemyTurn() {
+                if (!this.state.inBattle) return;
+                const enemyDmg = Math.max(1, Math.floor(this.state.currentEnemy.attack - (this.state.level * 0.5) + Math.random() * 3));
+                this.state.currentHp -= enemyDmg;
+                this.log(`${this.state.currentEnemy.name} の攻撃！ ${enemyDmg} のダメージを受けた！`, "log-damage");
+
+                if (this.state.currentHp <= 0) {
+                    this.state.currentHp = 0;
+                    this.gameOver();
+                }
+                this.updateUI();
+            }
+
+            heal() {
+                if (this.state.gold < 5) {
+                    this.log("お金が足りない！(必要: 5G)");
+                    return;
+                }
+                this.state.gold -= 5;
+                this.healAmount(20);
+
+                if (this.state.inBattle) {
+                    setTimeout(() => this.enemyTurn(), 500);
+                }
+                this.updateUI();
+            }
+
+            healAmount(amount) {
+                const oldHp = this.state.currentHp;
+                this.state.currentHp = Math.min(this.state.maxHp, this.state.currentHp + amount);
+                const recovered = this.state.currentHp - oldHp;
+                this.log(`HPが ${recovered} 回復した。`, "log-heal");
+                this.updateUI();
+            }
+
+            run() {
+                if (!this.state.inBattle) return;
+                if (Math.random() > 0.5) {
+                    this.log("うまく逃げ切れた！");
+                    this.state.inBattle = false;
+                    this.state.currentEnemy = null;
+                } else {
+                    this.log("逃げられなかった！");
+                    setTimeout(() => this.enemyTurn(), 500);
+                }
+                this.updateUI();
+            }
+
+            winBattle() {
+                const stageInfo = STAGES.find(s => s.id === this.state.stageId);
+                this.log(`${this.state.currentEnemy.name} を倒した！`);
+
+                // Rewards
+                const expGain = stageInfo.exp;
+                const goldGain = stageInfo.gold;
+                this.state.exp += expGain;
+                this.state.gold += goldGain;
+                this.log(`${expGain} EXP と ${goldGain} G を手に入れた。`, "log-item");
+
+                this.state.inBattle = false;
+                this.state.currentEnemy = null;
+
+                // Level Up Check
+                if (this.state.exp >= this.state.nextExp) {
+                    this.levelUp();
+                }
+
+                // Stage Clear Check (Simplified: every 5 kills or just random chance to find boss? Let's do simple EXP gate for stage for now or just manual progression? 
+                // Specification said: Clear 3 stages. Let's make it simpler: Reach Level 5 -> Stage 2, Level 10 -> Stage 3)
+                this.checkStageProgression();
+
+                this.updateUI();
+            }
+
+            levelUp() {
+                this.state.level++;
+                this.state.exp -= this.state.nextExp; // Carry over
+                this.state.nextExp = Math.floor(this.state.nextExp * 1.5);
+
+                this.state.maxHp += 10;
+                this.state.currentHp = this.state.maxHp; // Full heal
+
+                this.log(`レベルアップ！ Lv${this.state.level} になった！ HPが全回復した！`, "log-heal");
+            }
+
+            checkStageProgression() {
+                if (this.state.level >= 5 && this.state.stageId === 1) {
+                    this.state.stageId = 2;
+                    this.log("森を抜け、洞窟の入り口にたどり着いた...", "log-item");
+                } else if (this.state.level >= 10 && this.state.stageId === 2) {
+                    this.state.stageId = 3;
+                    this.log("洞窟を抜け、ついに魔王城が目の前に...", "log-item");
+                }
+                // Win condition could be beating level 15 or specific boss?
+                // Let's say Level 15 you win
+                if (this.state.level >= 15) {
+                    this.log("おめでとう！ あなたは魔王を倒し世界を救った！ THE END", "log-item");
+                }
+            }
+
+            gameOver() {
+                this.log("目の前が真っ暗になった...", "log-damage");
+                this.state.inBattle = false;
+                this.state.currentEnemy = null;
+                // Penalty?
+                this.state.gold = Math.floor(this.state.gold / 2);
+                this.state.currentHp = 1;
+                this.log("教会で目を覚ました。所持金が半分になった。");
+                this.updateUI();
+            }
+
+            save() {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+                this.log("セーブしました。");
+            }
+
+            load() {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    this.state = JSON.parse(data);
+                    this.log("ロードしました。");
+                } else {
+                    this.log("セーブデータがありません。");
+                }
+                this.updateUI();
+            }
+
+            reset() {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        const game = new Game();
+        game.init();
+
+    </script>
+
+</body>
+
+</html>
