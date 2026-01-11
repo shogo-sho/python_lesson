@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Arkanoid</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none;
+            /* Prevent scrolling on touch */
+        }
+
+        canvas {
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(0, 150, 255, 0.2);
+            border: 2px solid #333;
+        }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 3rem;
+            font-weight: bold;
+            text-align: center;
+            text-shadow: 0 0 10px #ff0000;
+            display: none;
+            pointer-events: none;
+        }
+
+        #restart-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 1.2rem;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: none;
+            /* Controlled by JS via game-over container usually, but let's put it inside */
+        }
+
+        .overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="overlay" class="overlay">
+        <div id="game-over-text">GAME OVER</div>
+        <button id="restart-btn">Try Again</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const gameOverText = document.getElementById('game-over-text');
+        const restartBtn = document.getElementById('restart-btn');
+
+        // Game Constants
+        let PADDLE_WIDTH = 100;
+        let PADDLE_HEIGHT = 15;
+        let BALL_RADIUS = 8;
+        let BRICK_ROW_COUNT = 3;
+        let BRICK_COLUMN_COUNT = 8;
+        let BRICK_PADDING = 10;
+        let BRICK_OFFSET_TOP = 50;
+        let BRICK_OFFSET_LEFT = 35;
+        let BRICK_HEIGHT = 20;
+
+        // Dynamic sizing vars
+        let brickWidth;
+
+        // Game State
+        let paddleX;
+        let rightPressed = false;
+        let leftPressed = false;
+        let x, y, dx, dy;
+        let bricks = [];
+        let score = 0;
+        let lives = 3;
+        let isGameOver = false;
+        let animationId;
+
+        function resizeCanvas() {
+            // Mobile friendly: maximize, but keep aspect ratio or just fill width
+            // For simple gameplay, let's fill width up to a max, and set height
+            const maxWidth = 800;
+            const width = Math.min(window.innerWidth - 20, maxWidth);
+            const height = Math.min(window.innerHeight - 20, 600); // Max height
+
+            canvas.width = width;
+            canvas.height = height;
+
+            // Recalculate dimensions
+            initDimensions();
+        }
+
+        function initDimensions() {
+            // Paddle
+            PADDLE_WIDTH = canvas.width * 0.2; // 20% of screen width
+            if (PADDLE_WIDTH > 120) PADDLE_WIDTH = 120;
+            if (PADDLE_WIDTH < 60) PADDLE_WIDTH = 60;
+
+            // Bricks
+            BRICK_OFFSET_LEFT = canvas.width * 0.05;
+            const availableWidth = canvas.width - (BRICK_OFFSET_LEFT * 2);
+            brickWidth = (availableWidth - (BRICK_PADDING * (BRICK_COLUMN_COUNT - 1))) / BRICK_COLUMN_COUNT;
+
+            // Reset Paddle Position if game running
+            if (!isGameOver) {
+                if (paddleX > canvas.width - PADDLE_WIDTH) {
+                    paddleX = canvas.width - PADDLE_WIDTH;
+                }
+            }
+        }
+
+        function initGame() {
+            isGameOver = false;
+            score = 0;
+            lives = 3;
+            overlay.style.display = 'none';
+
+            // Initial Positions
+            paddleX = (canvas.width - PADDLE_WIDTH) / 2;
+            resetBall();
+
+            // Create Bricks
+            bricks = [];
+            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                }
+            }
+
+            if (animationId) cancelAnimationFrame(animationId);
+            draw();
+        }
+
+        function resetBall() {
+            x = canvas.width / 2;
+            y = canvas.height - 40;
+            dx = 4 * (Math.random() > 0.5 ? 1 : -1);
+            dy = -4;
+        }
+
+        // Controls
+        document.addEventListener('keydown', keyDownHandler, false);
+        document.addEventListener('keyup', keyUpHandler, false);
+        document.addEventListener('mousemove', mouseMoveHandler, false);
+
+        // Touch Controls
+        canvas.addEventListener('touchstart', touchHandler, { passive: false });
+        canvas.addEventListener('touchmove', touchHandler, { passive: false });
+
+        function keyDownHandler(e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                rightPressed = true;
+            } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                leftPressed = true;
+            }
+        }
+
+        function keyUpHandler(e) {
+            if (e.key === 'Right' || e.key === 'ArrowRight') {
+                rightPressed = false;
+            } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                leftPressed = false;
+            }
+        }
+
+        function mouseMoveHandler(e) {
+            const relativeX = e.clientX - canvas.offsetLeft;
+            if (relativeX > 0 && relativeX < canvas.width) {
+                paddleX = relativeX - PADDLE_WIDTH / 2;
+            }
+        }
+
+        function touchHandler(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const relativeX = touch.clientX - canvas.offsetLeft;
+            if (relativeX > 0 && relativeX < canvas.width) {
+                paddleX = relativeX - PADDLE_WIDTH / 2;
+            }
+        }
+
+        restartBtn.addEventListener('click', initGame);
+
+        // Physics & Logic
+        function collisionDetection() {
+            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                    let b = bricks[c][r];
+                    if (b.status === 1) {
+                        if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + BRICK_HEIGHT) {
+                            dy = -dy;
+                            b.status = 0;
+                            score++;
+
+                            // Check Win
+                            if (score === BRICK_ROW_COUNT * BRICK_COLUMN_COUNT) {
+                                gameOver(true);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        function gameOver(win) {
+            isGameOver = true;
+            overlay.style.display = 'flex';
+            if (win) {
+                gameOverText.textContent = "YOU WIN!";
+                gameOverText.style.color = "#4CAF50";
+                gameOverText.style.textShadow = "0 0 10px #00ff00";
+            } else {
+                gameOverText.textContent = "GAME OVER";
+                gameOverText.style.color = "#ff0000";
+                gameOverText.style.textShadow = "0 0 10px #ff0000";
+            }
+        }
+
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(x, y, BALL_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = "#fff";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "white";
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.closePath();
+        }
+
+        function drawPaddle() {
+            ctx.beginPath();
+            ctx.rect(paddleX, canvas.height - PADDLE_HEIGHT - 10, PADDLE_WIDTH, PADDLE_HEIGHT);
+            ctx.fillStyle = "#0095DD";
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = "#0095DD";
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.closePath();
+        }
+
+        function drawBricks() {
+            for (let c = 0; c < BRICK_COLUMN_COUNT; c++) {
+                for (let r = 0; r < BRICK_ROW_COUNT; r++) {
+                    if (bricks[c][r].status === 1) {
+                        let brickX = (c * (brickWidth + BRICK_PADDING)) + BRICK_OFFSET_LEFT;
+                        let brickY = (r * (BRICK_HEIGHT + BRICK_PADDING)) + BRICK_OFFSET_TOP;
+                        bricks[c][r].x = brickX;
+                        bricks[c][r].y = brickY;
+
+                        ctx.beginPath();
+                        ctx.rect(brickX, brickY, brickWidth, BRICK_HEIGHT);
+                        // Gradient or alternate colors
+                        ctx.fillStyle = `hsl(${c * 45}, 70%, 50%)`;
+                        ctx.fill();
+                        ctx.closePath();
+                    }
+                }
+            }
+        }
+
+        function draw() {
+            if (isGameOver) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawBricks();
+            drawBall();
+            drawPaddle();
+            collisionDetection();
+
+            // Ball Physics
+            if (x + dx > canvas.width - BALL_RADIUS || x + dx < BALL_RADIUS) {
+                dx = -dx;
+            }
+            if (y + dy < BALL_RADIUS) {
+                dy = -dy;
+            } else if (y + dy > canvas.height - BALL_RADIUS - 10) { // Check bottom zone
+                // Paddle Collision
+                // Simple box collision for paddle Y range
+                if (y + dy > canvas.height - PADDLE_HEIGHT - 10 - BALL_RADIUS &&
+                    x > paddleX && x < paddleX + PADDLE_WIDTH) {
+
+                    // Ball hit paddle
+                    dy = -dy;
+                    // Add some English (spin) based on where it hit?
+                    // Speed up slightly?
+                    dy = dy * 1.05;
+                    if (Math.abs(dy) > 8) dy = (dy > 0 ? 8 : -8);
+
+                } else if (y + dy > canvas.height - BALL_RADIUS) {
+                    // Ball passed paddle
+                    lives--;
+                    if (!lives) {
+                        gameOver(false);
+                        return;
+                    } else {
+                        // Reset Ball Position Only if lives left? Or wait?
+                        // For this simple version, reset ball but keep game going
+                        x = canvas.width / 2;
+                        y = canvas.height - 30;
+                        dx = 4;
+                        dy = -4;
+                        paddleX = (canvas.width - PADDLE_WIDTH) / 2;
+                    }
+                }
+            }
+
+            x += dx;
+            y += dy;
+
+            // Paddle Movement
+            if (rightPressed && paddleX < canvas.width - PADDLE_WIDTH) {
+                paddleX += 7;
+            } else if (leftPressed && paddleX > 0) {
+                paddleX -= 7;
+            }
+
+            animationId = requestAnimationFrame(draw);
+        }
+
+        // Init
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+        initGame();
+
+    </script>
+</body>
+
+</html>
