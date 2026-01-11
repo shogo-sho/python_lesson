@@ -138,6 +138,12 @@ body {
 .grid-container {
     position: absolute;
     z-index: 1;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding: var(--grid-spacing);
+    box-sizing: border-box;
 }
 
 .grid-row {
@@ -170,6 +176,14 @@ body {
 .tile-container {
     position: absolute;
     z-index: 2;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    /* Tiles are absolutely positioned, so padding here doesn't affect them 
+       unless we changed their origin, but they are positioned by JS from (0,0).
+       We do NOT add padding here to avoid confusion; JS coordinates handle the spacing. */
 }
 
 .tile {

@@ -144,13 +144,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Let's rely on the CSS variable calc logic + JS style injection or classes.
                     // To make it easiest: Let's use `transform: translate(Xpx, Ypx)`
 
-                    const spacing = 15; // matches CSS var
-                    const tileSize = 106.25; // standard desktop calculation ((500 - 15*5)/4) roughly
+                    // Calculate metrics dynamically from CSS for perfect alignment
+                    const containerStyle = getComputedStyle(document.body); // CSS vars are on :root (html) or body usually inherits, checking root is safer but var is defined in :root
+                    // In style.css defined in :root. getComputedStyle(document.documentElement) is best.
+                    const rootStyle = getComputedStyle(document.documentElement);
+                    const gapStr = rootStyle.getPropertyValue('--grid-spacing').trim();
+                    const effectiveSpacing = parseFloat(gapStr) || 15;
 
-                    // We need to actually read the CSS variable or dynamic sizing for responsiveness.
-                    // For now, let's compute based on container width
                     const containerWidth = document.querySelector('.game-container').offsetWidth;
-                    const effectiveSpacing = containerWidth > 300 ? 15 : 10;
+                    // Recalculate tile size based on container width and spacing, mirroring the CSS calc()
+                    // --tile-size: (width - (spacing * (rows + 1))) / rows
                     const effectiveTileSize = (containerWidth - (effectiveSpacing * (gridSize + 1))) / gridSize;
 
                     const pX = effectiveSpacing + c * (effectiveTileSize + effectiveSpacing);
