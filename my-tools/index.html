@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal Dashboard</title>
+    <meta name="description" content="A productivity dashboard with Pomodoro timer, ToDo list, and character counter.">
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --accent-color: #bb86fc;
+            --accent-hover: #9965f4;
+            --danger-color: #cf6679;
+            --success-color: #03dac6;
+            --border-radius: 12px;
+            --spacing: 20px;
+            --font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-family);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: var(--spacing);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            color: var(--text-primary);
+        }
+
+        main {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: var(--spacing);
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: var(--spacing);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--spacing);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 10px;
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--accent-color);
+        }
+
+        /* Button Styles */
+        button {
+            cursor: pointer;
+            border: none;
+            border-radius: 6px;
+            padding: 8px 16px;
+            font-family: inherit;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: #000;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+        }
+
+        .btn-secondary:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+            border-color: var(--text-primary);
+        }
+
+        .btn-danger {
+            background-color: transparent;
+            color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: rgba(207, 102, 121, 0.1);
+        }
+
+        /* Pomodoro Timer */
+        .timer-display {
+            font-size: 4rem;
+            font-weight: 700;
+            text-align: center;
+            margin: 20px 0;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+        }
+
+        .timer-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .timer-status {
+            text-align: center;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        /* ToDo List */
+        .todo-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-field {
+            flex-grow: 1;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .todo-list {
+            list-style: none;
+            overflow-y: auto;
+            max-height: 300px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--text-secondary) var(--card-bg);
+        }
+
+        .todo-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .todo-list::-webkit-scrollbar-thumb {
+            background-color: var(--text-secondary);
+            border-radius: 3px;
+        }
+
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            animation: fadeIn 0.3s ease;
+        }
+
+        .todo-item:last-child {
+            border-bottom: none;
+        }
+
+        .todo-item.completed span {
+            text-decoration: line-through;
+            color: var(--text-secondary);
+        }
+
+        .todo-checkbox {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent-color);
+            cursor: pointer;
+        }
+
+        .todo-text {
+            flex-grow: 1;
+            word-break: break-all;
+        }
+
+        /* Character Counter */
+        .counter-area {
+            flex-grow: 1;
+            resize: none;
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-family: monospace;
+            font-size: 0.95rem;
+            min-height: 200px;
+            margin-bottom: 10px;
+        }
+
+        .counter-area:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .counter-stats {
+            display: flex;
+            justify-content: space-around;
+            background-color: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 6px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--success-color);
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            .timer-display {
+                font-size: 3rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Universal Dashboard</h1>
+    </header>
+
+    <main>
+        <!-- Pomodoro Timer Section -->
+        <section class="card">
+            <div class="card-header">
+                <h2 class="card-title">Pomodoro Timer</h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div class="timer-display" id="timer">25:00</div>
+            <div class="timer-controls">
+                <button class="btn-primary" id="startBtn">Start</button>
+                <button class="btn-secondary" id="pauseBtn">Pause</button>
+                <button class="btn-secondary" id="resetBtn">Reset</button>
+            </div>
+            <div class="timer-controls" style="margin-top: 10px;">
+                <button class="btn-secondary" id="modeBtn" style="font-size: 0.8rem; padding: 4px 8px;">Switch to Break
+                    (5m)</button>
+            </div>
+            <p class="timer-status" id="timerStatus">Ready to focus?</p>
+        </section>
+
+        <!-- ToDo List Section -->
+        <section class="card">
+            <div class="card-header">
+                <h2 class="card-title">ToDo List</h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+            </div>
+            <div class="todo-input-group">
+                <input type="text" id="todoInput" class="input-field" placeholder="Add a new task..."
+                    autocomplete="off">
+                <button class="btn-primary" id="addTodoBtn">Add</button>
+            </div>
+            <ul class="todo-list" id="todoList">
+                <!-- Tasks will be added here -->
+            </ul>
+        </section>
+
+        <!-- Character Counter Section -->
+        <section class="card">
+            <div class="card-header">
+                <h2 class="card-title">Text Analysis</h2>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-color);">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </div>
+            <textarea id="textInput" class="counter-area"
+                placeholder="Paste your text here to count characters and lines..."></textarea>
+            <div class="counter-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="charCount">0</div>
+                    <div class="stat-label">Characters</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="lineCount">0</div>
+                    <div class="stat-label">Lines</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="noSpaceCount">0</div>
+                    <div class="stat-label">No Spaces</div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        /**
+         * Universal Dashboard Logic
+         */
+
+        // --- Pomodoro Timer ---
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const modeBtn = document.getElementById('modeBtn');
+        const timerStatus = document.getElementById('timerStatus');
+
+        let interval;
+        let timeLeft = 25 * 60; // seconds
+        let isWorkMode = true;
+        let isRunning = false;
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            const modeText = isWorkMode ? 'Focus' : 'Break';
+            document.title = `(${minutes}:${seconds.toString().padStart(2, '0')}) ${modeText} - Dashboard`;
+        }
+
+        function toggleTimer() {
+            if (isRunning) return;
+            isRunning = true;
+            timerStatus.textContent = isWorkMode ? 'Stay focused!' : 'Relax and recharge.';
+            interval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    updateDisplay();
+                } else {
+                    clearInterval(interval);
+                    isRunning = false;
+                    // Play notification sound or alert could go here
+                    alert(isWorkMode ? 'Time for a break!' : 'Back to work!');
+                    resetTimer();
+                }
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            clearInterval(interval);
+            isRunning = false;
+            timerStatus.textContent = 'Timer paused.';
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timeLeft = isWorkMode ? 25 * 60 : 5 * 60;
+            updateDisplay();
+            timerStatus.textContent = 'Ready?';
+            document.title = 'Universal Dashboard';
+        }
+
+        function switchMode() {
+            isWorkMode = !isWorkMode;
+            modeBtn.textContent = isWorkMode ? 'Switch to Break (5m)' : 'Switch to Focus (25m)';
+            resetTimer();
+        }
+
+        startBtn.addEventListener('click', toggleTimer);
+        pauseBtn.addEventListener('click', pauseTimer);
+        resetBtn.addEventListener('click', resetTimer);
+        modeBtn.addEventListener('click', switchMode);
+
+        // --- ToDo List (LocalStorage) ---
+        const todoInput = document.getElementById('todoInput');
+        const addTodoBtn = document.getElementById('addTodoBtn');
+        const todoList = document.getElementById('todoList');
+
+        let todos = JSON.parse(localStorage.getItem('dashboard_todos')) || [];
+
+        function saveTodos() {
+            localStorage.setItem('dashboard_todos', JSON.stringify(todos));
+        }
+
+        function renderTodos() {
+            todoList.innerHTML = '';
+            todos.forEach((todo, index) => {
+                const li = document.createElement('li');
+                li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'todo-checkbox';
+                checkbox.checked = todo.completed;
+                checkbox.addEventListener('change', () => toggleTodo(index));
+
+                const span = document.createElement('span');
+                span.className = 'todo-text';
+                span.textContent = todo.text;
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn-danger';
+                delBtn.innerHTML = '&times;';
+                delBtn.title = 'Delete task';
+                delBtn.addEventListener('click', () => deleteTodo(index));
+
+                li.appendChild(checkbox);
+                li.appendChild(span);
+                li.appendChild(delBtn);
+                todoList.appendChild(li);
+            });
+        }
+
+        function addTodo() {
+            const text = todoInput.value.trim();
+            if (text) {
+                todos.push({ text, completed: false });
+                saveTodos();
+                renderTodos();
+                todoInput.value = '';
+            }
+        }
+
+        function toggleTodo(index) {
+            todos[index].completed = !todos[index].completed;
+            saveTodos();
+            renderTodos();
+        }
+
+        function deleteTodo(index) {
+            todos.splice(index, 1);
+            saveTodos();
+            renderTodos();
+        }
+
+        addTodoBtn.addEventListener('click', addTodo);
+        todoInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addTodo();
+        });
+
+        // --- Character Counter ---
+        const textInput = document.getElementById('textInput');
+        const charCountEl = document.getElementById('charCount');
+        const lineCountEl = document.getElementById('lineCount');
+        const noSpaceCountEl = document.getElementById('noSpaceCount');
+
+        function updateCounts() {
+            const text = textInput.value;
+            charCountEl.textContent = text.length;
+
+            const lines = text ? text.split(/\r\n|\r|\n/).length : 0;
+            lineCountEl.textContent = lines;
+
+            const noSpaces = text.replace(/\s/g, '').length;
+            noSpaceCountEl.textContent = noSpaces;
+        }
+
+        textInput.addEventListener('input', updateCounts);
+
+        // Initialize
+        updateDisplay();
+        renderTodos();
+    </script>
+</body>
+
+</html>
