@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Flashcards</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f7;
+            --text-color: #1d1d1f;
+            --card-bg: #ffffff;
+            --accent-color: #0071e3;
+            --secondary-color: #86868b;
+            --success-color: #34c759;
+            --warning-color: #ff9f0a;
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .progress-text {
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        /* 3D Flip Container */
+        .scene {
+            width: 320px;
+            height: 480px;
+            perspective: 1000px;
+            cursor: pointer;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+            transform-style: preserve-3d;
+            border-radius: 24px;
+            box-shadow: var(--shadow-xl);
+        }
+
+        .card.is-flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            border-radius: 24px;
+            background-color: var(--card-bg);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .card-face.back {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, #ffffff 0%, #f0f0f5 100%);
+        }
+
+        .category-badge {
+            position: absolute;
+            top: 30px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            background: #f0f0f5;
+            padding: 6px 14px;
+            border-radius: 20px;
+        }
+
+        .word-en {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: var(--text-color);
+        }
+
+        .pronunciation {
+            font-size: 1.1rem;
+            color: var(--secondary-color);
+            font-family: serif;
+        }
+
+        .word-jp {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text-color);
+        }
+
+        .example-sentence {
+            font-size: 1rem;
+            color: var(--secondary-color);
+            line-height: 1.6;
+            margin-top: 10px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 20px;
+            width: 100%;
+            max-width: 320px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+
+        .controls.visible {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 16px;
+            border: none;
+            border-radius: 16px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn-again {
+            background-color: #fff;
+            color: var(--warning-color);
+            border: 2px solid #f2f2f7;
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-again:hover {
+            border-color: var(--warning-color);
+        }
+
+        .btn-next {
+            background-color: var(--accent-color);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 113, 227, 0.3);
+        }
+
+        .btn-next:hover {
+            background-color: #0077ED;
+        }
+
+        .complete-screen {
+            text-align: center;
+            display: none;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .complete-emoji {
+            font-size: 4rem;
+            margin-bottom: 20px;
+        }
+
+        .complete-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .btn-restart {
+            margin-top: 30px;
+            background-color: var(--text-color);
+            color: #fff;
+            padding: 16px 32px;
+            border-radius: 30px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Tap hint animation */
+        .tap-hint {
+            position: absolute;
+            bottom: 30px;
+            color: var(--secondary-color);
+            font-size: 0.85rem;
+            opacity: 0.6;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.8;
+            }
+
+            100% {
+                opacity: 0.3;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <div class="progress-text" id="progress-text">Card 1 / 15</div>
+    </header>
+
+    <div class="scene" id="card-scene">
+        <div class="card" id="card">
+            <div class="card-face front">
+                <span class="category-badge" id="category">Business</span>
+                <div class="word-en" id="word-en">Initiative</div>
+                <div class="pronunciation" id="pronunciation">/ɪˈnɪʃ.ə.tɪv/</div>
+                <div class="tap-hint">Tap to flip</div>
+            </div>
+            <div class="card-face back">
+                <div class="word-jp" id="word-jp">主導権 / 自発性</div>
+                <p class="example-sentence" id="example">
+                    "Take the initiative to solve the problem."
+                    <br><br>
+                    (自ら率先して問題を解決しなさい)
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls" id="controls">
+        <button class="btn btn-again" onclick="clickAgain()">
+            ↺ Again
+        </button>
+        <button class="btn btn-next" onclick="clickNext()">
+            Next ➜
+        </button>
+    </div>
+
+    <div class="complete-screen" id="complete-screen">
+        <div class="complete-emoji">🎉</div>
+        <h2 class="complete-title">All Done!</h2>
+        <p style="color: var(--secondary-color);">Great job reviewing all words.</p>
+        <button class="btn-restart" onclick="location.reload()">Review Again</button>
+    </div>
+
+    <script>
+        const initialCards = [
+            { en: "Initiative", pron: "/ɪˈnɪʃ.ə.tɪv/", jp: "主導権 / 自発性", ex: "Take the initiative to solve problems.", cat: "Business" },
+            { en: "Inevitable", pron: "/ɪˈnev.ɪ.tə.bəl/", jp: "避けられない / 必然の", ex: "Change is inevitable in life.", cat: "General" },
+            { en: "Implement", pron: "/ˈɪm.plə.ment/", jp: "実行する / 導入する", ex: "We need to implement the new strategy.", cat: "Business" },
+            { en: "Ambiguous", pron: "/æmˈbɪɡ.ju.əs/", jp: "曖昧な / 多義的な", ex: "Her instructions were quite ambiguous.", cat: "General" },
+            { en: "Discrepancy", pron: "/dɪˈskrep.ən.si/", jp: "食い違い / 不一致", ex: "There is a discrepancy in the data.", cat: "Business" },
+            { en: "Lucrative", pron: "/ˈluː.krə.tɪv/", jp: "利益の上がる / 儲かる", ex: "It was a lucrative business deal.", cat: "Business" },
+            { en: "Vulnerable", pron: "/ˈvʌl.nər.ə.bəl/", jp: "傷つきやすい / 脆弱な", ex: "The system is vulnerable to attacks.", cat: "Tech" },
+            { en: "Consensus", pron: "/kənˈsen.səs/", jp: "合意 / 総意", ex: "We reached a consensus on the plan.", cat: "Meeting" },
+            { en: "Resilient", pron: "/rɪˈzɪl.jənt/", jp: "弾力のある / 回復力のある", ex: "Human spirit is incredibly resilient.", cat: "General" },
+            { en: "Meticulous", pron: "/məˈtɪk.jə.ləs/", jp: "綿密な / 細心の注意を払う", ex: "She is meticulous about her work.", cat: "General" },
+            { en: "Simultaneously", pron: "/ˌsaɪ.məlˈteɪ.ni.əs.li/", jp: "同時に", ex: "The two events happened simultaneously.", cat: "General" },
+            { en: "Exquisite", pron: "/ɪkˈskwɪz.ɪt/", jp: "非常に美しい / 精巧な", ex: "The jewelry was of exquisite craftsmanship.", cat: "Art" },
+            { en: "Hypothesis", pron: "/haɪˈpɒθ.ə.sɪs/", jp: "仮説", ex: "We need to test this hypothesis.", cat: "Science" },
+            { en: "Unprecedented", pron: "/ʌnˈpres.ɪ.den.tɪd/", jp: "前例のない", ex: "We are facing an unprecedented crisis.", cat: "News" },
+            { en: "Procrastinate", pron: "/prəˈkræs.tɪ.neɪt/", jp: "先延ばしにする", ex: "Don't procrastinate on your homework.", cat: "Daily" }
+        ];
+
+        let queue = [...initialCards];
+        let currentCard = null;
+        let isFlipped = false;
+
+        const cardEl = document.getElementById('card');
+        const sceneEl = document.getElementById('card-scene');
+        const controlsEl = document.getElementById('controls');
+
+        const ui = {
+            en: document.getElementById('word-en'),
+            pron: document.getElementById('pronunciation'),
+            jp: document.getElementById('word-jp'),
+            ex: document.getElementById('example'),
+            cat: document.getElementById('category'),
+            progress: document.getElementById('progress-text')
+        };
+
+        function updateCard() {
+            if (queue.length === 0) {
+                showComplete();
+                return;
+            }
+
+            currentCard = queue[0];
+
+            // Update UI Content
+            ui.en.textContent = currentCard.en;
+            ui.pron.textContent = currentCard.pron;
+            ui.jp.textContent = currentCard.jp;
+            ui.ex.textContent = currentCard.ex;
+            ui.cat.textContent = currentCard.cat;
+
+            // Initial state
+            isFlipped = false;
+            cardEl.classList.remove('is-flipped');
+            controlsEl.classList.remove('visible');
+
+            // Update progress
+            // Since we loop "Again" cards, simple x/15 isn't perfect, 
+            // but let's show Remaining count for clarity
+            ui.progress.textContent = `Remaining: ${queue.length} cards`;
+        }
+
+        // Card Flip
+        sceneEl.addEventListener('click', () => {
+            if (!isFlipped) {
+                cardEl.classList.add('is-flipped');
+                isFlipped = true;
+                setTimeout(() => {
+                    controlsEl.classList.add('visible');
+                }, 200);
+            } else {
+                // Optional: Flip back? Usually Flashcards just stay flipped until Next
+                // cardEl.classList.remove('is-flipped');
+                // isFlipped = false;
+            }
+        });
+
+        function clickNext() {
+            // Remove current from queue
+            queue.shift();
+            animateTransition();
+        }
+
+        function clickAgain() {
+            // Move current to end of queue
+            const cardToMove = queue.shift();
+            queue.push(cardToMove);
+            animateTransition();
+        }
+
+        function animateTransition() {
+            // Slide out effect
+            cardEl.style.transform = "translateX(-120%) rotateY(180deg)";
+            cardEl.style.opacity = "0";
+
+            setTimeout(() => {
+                // Reset position invisible
+                cardEl.style.transition = 'none';
+                cardEl.style.transform = "translateX(50px)";
+                cardEl.classList.remove('is-flipped');
+
+                updateCard();
+
+                // Allow browser to render reset
+                requestAnimationFrame(() => {
+                    // Slide in
+                    cardEl.style.transition = "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), opacity 0.4s";
+                    cardEl.style.transform = "translateX(0)";
+                    cardEl.style.opacity = "1";
+                });
+            }, 300);
+        }
+
+        function showComplete() {
+            sceneEl.style.display = 'none';
+            controlsEl.style.display = 'none';
+            document.getElementById('complete-screen').style.display = 'block';
+            ui.progress.textContent = "";
+        }
+
+        // Initialize
+        updateCard();
+
+    </script>
+</body>
+
+</html>
