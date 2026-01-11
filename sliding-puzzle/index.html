@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sliding Puzzle</title>
+    <style>
+        :root {
+            --cell-size: 80px;
+            --grid-gap: 5px;
+            --board-padding: 10px;
+            --bg-color: #f0f0f0;
+            --board-bg: #8c7b75;
+            --cell-bg: #d7ccc8;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            user-select: none;
+            /* Prevent text selection while dragging */
+            touch-action: none;
+            /* Prevent scrolling while dragging on touch */
+        }
+
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2rem;
+            color: #5d4037;
+        }
+
+        #game-container {
+            position: relative;
+            padding: var(--board-padding);
+            background-color: var(--board-bg);
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        #board {
+            /* 4 columns x 5 rows */
+            width: calc(4 * var(--cell-size) + 3 * var(--grid-gap));
+            height: calc(5 * var(--cell-size) + 4 * var(--grid-gap));
+            position: relative;
+            background-color: #6d4c41;
+            /* Inner board color */
+            border: 2px solid #4e342e;
+        }
+
+        /* Exit Indicator on the right */
+        #exit-marker {
+            position: absolute;
+            right: -15px;
+            top: calc(3 * var(--cell-size) + 3 * var(--grid-gap));
+            /* Row 3 (0-indexed logic? No, row 4 visual?) Let's say Row 3 (index 3, 4th row) is usual exit? No, traditionally bottom center. User said RIGHT. */
+            /* Let's place exit at Row 3 (index 2? 0, 1, 2) */
+            /* Actually, let's wait for JS spawn to define level. I'll put a visual marker at Row 2 (middle) */
+            top: calc(var(--cell-size) * 3 + var(--grid-gap) * 3);
+            /* Top of 4th row? */
+            /* Let's define it dynamically or just style it roughly */
+            width: 15px;
+            height: calc(var(--cell-size) * 2 + var(--grid-gap));
+            /* 2 high? */
+            background-color: rgba(255, 0, 0, 0.3);
+            border: 2px dashed red;
+            border-left: none;
+            display: none;
+            /* Hidden for generic, shown via JS if needed? Or just hardcode logic. */
+        }
+
+        .block {
+            position: absolute;
+            box-sizing: border-box;
+            border-radius: 8px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: rgba(255, 255, 255, 0.8);
+            cursor: grab;
+            transition: transform 0.1s linear;
+            /* Smooth drag? better to be instant for 1:1 feel, transition for snap */
+            /* We will use transition only for snaps, usually handled via class */
+        }
+
+        .block.dragging {
+            z-index: 100;
+            cursor: grabbing;
+            transition: none;
+            /* Instant follow */
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+
+        .block.snapping {
+            transition: left 0.2s ease-out, top 0.2s ease-out;
+        }
+
+        /* Block Types (Colors) */
+        .block-red {
+            background: linear-gradient(135deg, #e53935, #c62828);
+        }
+
+        /* Main */
+        .block-blue {
+            background: linear-gradient(135deg, #42a5f5, #1565c0);
+        }
+
+        .block-green {
+            background: linear-gradient(135deg, #66bb6a, #2e7d32);
+        }
+
+        .block-yellow {
+            background: linear-gradient(135deg, #fdd835, #fbc02d);
+            color: #333;
+        }
+
+        .block-gray {
+            background: linear-gradient(135deg, #bdbdbd, #757575);
+        }
+
+        /* Firefox Grid Fallback? We are using absolute positioning, so Grid is just for sizing ref */
+
+        #victory-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            display: none;
+            z-index: 200;
+        }
+
+        #victory-message h2 {
+            margin: 0 0 10px 0;
+            color: #d84315;
+        }
+
+        #victory-message button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Sliding Puzzle</h1>
+
+    <div id="game-container">
+        <div id="board">
+            <!-- Blocks injected here -->
+        </div>
+        <div id="victory-message">
+            <h2>Puzzle Solved!</h2>
+            <button onclick="resetGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CELL_SIZE = 80;
+        const GRID_GAP = 5;
+        const BOARD_COLS = 4;
+        const BOARD_ROWS = 5;
+        // Total cell step = size + gap
+        const CELL_STEP = CELL_SIZE + GRID_GAP;
+
+        // Level Design (Hakoiri Musume Style)
+        // 0: empty, 1: red(2x2), 2: v-bar(1x2), 3: h-bar(2x1), 4: dot(1x1)
+        // We define blocks as objects: { type: 'red', x: 1, y: 0, w: 2, h: 2 }
+        // Standard "Daughter in the Box" (Hakoiri Musume) Layout:
+        // C1 C2 C3 C4
+        // V  R  R  V  (Row 0)
+        // V  R  R  V  (Row 1)
+        // V  H  H  V  (Row 2)  <- Wait, usually R is top center.
+
+        /* 
+           Typical Layout:
+           [V1] [ R  R ] [V2]
+           [V1] [ R  R ] [V2]
+           [V3] [  H   ] [V4]
+           [V3] [ P  P ] [V4] (P=Pawn/Dot) 
+           ... it varies. 
+           
+           Let's design a solvable layout.
+           Exit: Bottom Center is standard. 
+           User requested "Right side exit".
+           Let's assume the exit is at (Row 3, Col 4... wait Col 3 is max).
+           So we need to get Red Block to x=2, y=something? Or just x=2 and "out"?
+           Let's place the logic such that if Red Block x=2 and y=1 (middle right), it wins.
+           
+           Proposed Layout with Right Exit Goal:
+           R: Red (2x2) at (0, 0) - Top Left
+           Exit: Right side at Row 1-2.
+           
+           Let's go with a standard-ish layout but rotated?
+           Let's try:
+           (0,0) Red (2x2)
+           (2,0) V-Green (1x2)
+           (3,0) V-Green (1x2)
+           ...
+           
+           Actually, implementing a generic engine is safer.
+           I'll define a set of blocks.
+           
+        */
+
+        const INITIAL_BLOCKS = [
+            { id: 'red', type: 'block-red', x: 0, y: 0, w: 2, h: 2 }, // Top-Left
+            { id: 'v1', type: 'block-blue', x: 2, y: 0, w: 1, h: 2 },
+            { id: 'v2', type: 'block-blue', x: 3, y: 0, w: 1, h: 2 },
+
+            { id: 'h1', type: 'block-yellow', x: 0, y: 2, w: 2, h: 1 },
+            { id: 'v3', type: 'block-blue', x: 2, y: 2, w: 1, h: 2 },
+            { id: 'p1', type: 'block-gray', x: 3, y: 2, w: 1, h: 1 },
+            { id: 'p2', type: 'block-gray', x: 3, y: 3, w: 1, h: 1 },
+
+            { id: 'p3', type: 'block-gray', x: 0, y: 3, w: 1, h: 1 },
+            { id: 'p4', type: 'block-gray', x: 1, y: 3, w: 1, h: 1 },
+
+            { id: 'h2', type: 'block-yellow', x: 0, y: 4, w: 2, h: 1 },
+            // Empty spaces roughly at (2,4) and (3,4) initially
+        ];
+
+        // GOAL: Red Block needs to reach (2, 3) ??? 
+        // User said "Right side exit". Let's assume the wall is open at typically Rows 3-4?
+        // Let's set GOAL: Red Block x=2, y=1 ? That's middle right.
+        // Let's set the goal: x=2 and y=1.
+
+        let blocks = [];
+        let draggedBlock = null;
+        let startX = 0;
+        let startY = 0;
+        let initialBlockX = 0;
+        let initialBlockY = 0;
+
+        const boardEl = document.getElementById('board');
+        const victoryEl = document.getElementById('victory-message');
+
+        function initGame() {
+            victoryEl.style.display = 'none';
+            boardEl.innerHTML = '';
+            // Deep copy
+            blocks = JSON.parse(JSON.stringify(INITIAL_BLOCKS));
+
+            // Create DOM
+            blocks.forEach(b => {
+                const el = document.createElement('div');
+                el.classList.add('block', b.type);
+                el.id = b.id;
+                el.style.width = (b.w * CELL_SIZE + (b.w - 1) * GRID_GAP) + 'px';
+                el.style.height = (b.h * CELL_SIZE + (b.h - 1) * GRID_GAP) + 'px';
+                el.style.left = (b.x * CELL_STEP) + 'px';
+                el.style.top = (b.y * CELL_STEP) + 'px';
+
+                // Event Listeners
+                el.addEventListener('mousedown', handleStart);
+                el.addEventListener('touchstart', handleStart, { passive: false });
+
+                boardEl.appendChild(el);
+                b.el = el;
+            });
+        }
+
+        function handleStart(e) {
+            if (e.target.closest('#victory-message')) return;
+            const el = e.target.closest('.block');
+            if (!el) return;
+
+            e.preventDefault();
+            draggedBlock = blocks.find(b => b.id === el.id);
+            draggedBlock.el.classList.add('dragging');
+
+            // Mouse/Touch pos
+            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+
+            // Block current CSS pos
+            initialBlockX = draggedBlock.x * CELL_STEP;
+            initialBlockY = draggedBlock.y * CELL_STEP;
+
+            startX = clientX;
+            startY = clientY;
+
+            document.addEventListener('mousemove', handleMove);
+            document.addEventListener('mouseup', handleEnd);
+            document.addEventListener('touchmove', handleMove, { passive: false });
+            document.addEventListener('touchend', handleEnd);
+        }
+
+        function handleMove(e) {
+            if (!draggedBlock) return;
+            e.preventDefault();
+
+            const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+            const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+
+            const dx = clientX - startX;
+            const dy = clientY - startY;
+
+            // Determine dominant axis (lock to X or Y)
+            // But for live feel, maybe we constrain based on collisions?
+            // "Ghost" logic is safer. Let's just update visually but clamp to valid moves.
+            // Simplified: Allow visual move, snap at end. 
+            // Better: Constrain to valid intervals.
+
+            // For this task, let's implement strict axis locking.
+            // Move only if collision free?
+            // Let's do a simpler "Visual follow" then "Snap logic".
+            // But "cannot go through blocks".
+
+            // Let's strictly limit movement to the available bounds in that direction.
+            // We need to calculate availability first.
+
+            // Not implemented complex continuous collision for dragging.
+            // Let's implement simpler: Drag follows mouse. If collision, stop at wall. 
+            // Too complex for single file quick implementation?
+            // "Slide one cell at a time"?
+            // NO, prompt said "Drag blocks".
+
+            // Let's simply move the element visually, but verify "Is this valid?" 
+            // Actually, usually you calculate the min/max X and Y for this block *before* moving.
+
+            // 1. Calculate free range relative to current position.
+            // But we don't know axis yet.
+            // Check delta.
+            let moveX = dx;
+            let moveY = dy;
+
+            if (Math.abs(moveX) > Math.abs(moveY)) {
+                moveY = 0; // Lock X
+            } else {
+                moveX = 0; // Lock Y
+            }
+
+            // Now clamp moveX/moveY based on grid
+            // Current Grid Pos
+            const cx = draggedBlock.x;
+            const cy = draggedBlock.y;
+
+            // Check collisions in direction
+            // (Simple Step check: can block move to x-1? x+1?)
+            // We can allow pixel movement within the bounds of (free cells to left) and (free cells to right).
+
+            // ... This is getting detailed logic. Let's implement standard "Snap to grid" on release,
+            // but visually constrain to 1 cell distance max? Or calculate limits.
+
+            // Implementation: Just move visually, and on Drop, determine nearest valid grid cell that is reachable.
+            // "Reachable" is key. Can't jump over.
+
+            // Let's stick to X/Y axis lock.
+            if (moveY === 0) {
+                draggedBlock.el.style.transform = `translateX(${moveX}px)`;
+            } else {
+                draggedBlock.el.style.transform = `translateY(${moveY}px)`;
+            }
+        }
+
+        function handleEnd(e) {
+            if (!draggedBlock) return;
+
+            // Remove listeners
+            document.removeEventListener('mousemove', handleMove);
+            document.removeEventListener('mouseup', handleEnd);
+            document.removeEventListener('touchmove', handleMove);
+            document.removeEventListener('touchend', handleEnd);
+
+            // Calculate Drop
+            const transform = draggedBlock.el.style.transform;
+            // Parse translate(x) or (y) - regex
+            // Basic approximation
+            let dx = 0;
+            let dy = 0;
+
+            if (transform.includes('translateX')) {
+                const match = transform.match(/translateX\(([-\d.]+)px\)/);
+                if (match) dx = parseFloat(match[1]);
+            } else if (transform.includes('translateY')) {
+                const match = transform.match(/translateY\(([-\d.]+)px\)/);
+                if (match) dy = parseFloat(match[1]);
+            }
+
+            // Target Grid Delta
+            // Round to nearest integer step
+            let gridDx = Math.round(dx / CELL_STEP);
+            let gridDy = Math.round(dy / CELL_STEP);
+
+            // Attempt to move step by step to ensure no tunneling
+            // e.g. if gridDx is 2, check if 1 is empty, then 2.
+
+            let finalDx = 0;
+            let finalDy = 0;
+
+            if (gridDx !== 0) {
+                const step = gridDx > 0 ? 1 : -1;
+                for (let i = 0; i < Math.abs(gridDx); i++) {
+                    if (canMove(draggedBlock, finalDx + step, 0)) {
+                        finalDx += step;
+                    } else {
+                        break;
+                    }
+                }
+            } else if (gridDy !== 0) {
+                const step = gridDy > 0 ? 1 : -1;
+                for (let i = 0; i < Math.abs(gridDy); i++) {
+                    if (canMove(draggedBlock, 0, finalDy + step)) {
+                        finalDy += step;
+                    } else {
+                        break;
+                    }
+                }
+            }
+
+            // Apply Move
+            draggedBlock.x += finalDx;
+            draggedBlock.y += finalDy;
+
+            // Visual Snap
+            draggedBlock.el.classList.remove('dragging');
+            draggedBlock.el.classList.add('snapping');
+            draggedBlock.el.style.transform = 'none'; // Clear transform
+            draggedBlock.el.style.left = (draggedBlock.x * CELL_STEP) + 'px';
+            draggedBlock.el.style.top = (draggedBlock.y * CELL_STEP) + 'px';
+
+            setTimeout(() => {
+                draggedBlock.el.classList.remove('snapping');
+                checkWin();
+                draggedBlock = null;
+            }, 200);
+        }
+
+        function canMove(block, dx, dy) {
+            const tx = block.x + dx;
+            const ty = block.y + dy;
+
+            // Bounds
+            if (tx < 0 || tx + block.w > BOARD_COLS) return false;
+            // Allow exiting to the right ONLY for Red Block
+            // "Right side exit". Let's say if Red Block x goes to BOARD_COLS (which is out)
+            // But we need a visual gap.
+            // Let's strictly keep inside board for now, and define "Win" as "Red Block.x == BOARD_COLS - 2" (Rightmost position)
+            // because it is width 2. Max x index is 2 (occupies 2,3).
+
+            if (ty < 0 || ty + block.h > BOARD_ROWS) return false;
+
+            // Collision with other blocks
+            // Check overlap
+            for (let b of blocks) {
+                if (b.id === block.id) continue;
+                if (isOverlapping(tx, ty, block.w, block.h, b.x, b.y, b.w, b.h)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function isOverlapping(x1, y1, w1, h1, x2, y2, w2, h2) {
+            return x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && y1 + h1 > y2;
+        }
+
+        function checkWin() {
+            const red = blocks.find(b => b.id === 'red');
+            // Win condition: Red block is at the right edge
+            // Board Cols = 4. Red width = 2. Rightmost valid x is 2 (occupies 2,3).
+            // Let's require it to be at x=2 and say y=3 (middle-ish exit?)
+            // Or just "Right side"? Let's make it x=2 and y=1.
+            if (red.x === 2 && red.y === 1) { // Specific exit point
+                // Wait, y=1 is row 1. (Occupies 1, 2)
+                // Show message
+                victoryEl.style.display = 'block';
+            }
+        }
+
+        function resetGame() {
+            initGame();
+        }
+
+        // Add visual exit marker style dynamic
+        // Mark exit at Row 1 (y=1) on the right?
+        const exit = document.createElement('div');
+        exit.id = 'exit-marker';
+        // y=1 means top is CELL_STEP * 1.
+        exit.style.top = (CELL_STEP * 1) + 'px';
+        exit.style.display = 'block';
+        document.getElementById('board').appendChild(exit);
+
+        initGame();
+    </script>
+</body>
+
+</html>
