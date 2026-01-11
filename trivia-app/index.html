@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trivia Master</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --text-color: #ffffff;
+            --accent-color: #6C63FF;
+            --success-color: #4CAF50;
+            --error-color: #F44336;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background-color 0.5s ease;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 600px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            position: relative;
+            z-index: 10;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            background: linear-gradient(45deg, #6C63FF, #00BCD4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .progress-container {
+            margin-bottom: 20px;
+        }
+
+        .progress-text {
+            text-align: right;
+            font-size: 0.9em;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: var(--accent-color);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .question-text {
+            font-size: 1.25em;
+            line-height: 1.6;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 15px;
+        }
+
+        .option-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            padding: 15px;
+            border-radius: 12px;
+            color: white;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+
+        .option-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.correct {
+            background: var(--success-color) !important;
+            border-color: var(--success-color);
+        }
+
+        .option-btn.incorrect {
+            background: var(--error-color) !important;
+            border-color: var(--error-color);
+        }
+
+        .explanation-card {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            display: none;
+            border-left: 4px solid var(--accent-color);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .explanation-title {
+            font-weight: bold;
+            color: var(--accent-color);
+            margin-bottom: 8px;
+        }
+
+        .next-btn,
+        .start-btn,
+        .restart-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 25px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .next-btn:hover,
+        .start-btn:hover,
+        .restart-btn:hover {
+            opacity: 0.9;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Flash effects */
+        .flash-green {
+            background-color: rgba(76, 175, 80, 0.2) !important;
+        }
+
+        .flash-red {
+            background-color: rgba(244, 67, 54, 0.2) !important;
+        }
+
+        .result-screen {
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 3em;
+            font-weight: bold;
+            margin: 20px 0;
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container" id="app">
+        <!-- Start Screen -->
+        <div id="start-screen">
+            <h1>Trivia Master</h1>
+            <p style="text-align: center; color: #ccc; margin-bottom: 30px;">
+                あなたの雑学力を試してみましょう。<br>
+                全10問、驚きの真実があなたを待っています。
+            </p>
+            <button class="start-btn" onclick="startGame()">クイズを始める</button>
+        </div>
+
+        <!-- Quiz Screen -->
+        <div id="quiz-screen" class="hidden">
+            <div class="progress-container">
+                <div class="progress-text" id="progress-text">Question 1/10</div>
+                <div class="progress-bar-bg">
+                    <div class="progress-bar-fill" id="progress-bar"></div>
+                </div>
+            </div>
+
+            <h2 class="question-text" id="question-text">Loading...</h2>
+
+            <div class="options-grid" id="options-container">
+                <!-- Options will be injected here -->
+            </div>
+
+            <div class="explanation-card" id="explanation-card">
+                <div class="explanation-title" id="explanation-label">解説</div>
+                <div id="explanation-text"></div>
+            </div>
+
+            <button class="next-btn hidden" id="next-btn" onclick="nextQuestion()">次の問題へ</button>
+        </div>
+
+        <!-- Result Screen -->
+        <div id="result-screen" class="hidden result-screen">
+            <h1>結果発表</h1>
+            <p>あなたのスコアは...</p>
+            <div class="score-display" id="final-score">0 / 10</div>
+            <p id="result-message" style="margin-bottom: 30px; color: #ccc;"></p>
+            <button class="restart-btn" onclick="location.reload()">もう一度挑戦する</button>
+        </div>
+    </div>
+
+    <script>
+        const questions = [
+            {
+                question: "ハチミツの賞味期限はどれくらい？",
+                options: ["10年", "100年", "3000年", "永遠に近い"],
+                correct: 3,
+                explanation: "本物の純粋なハチミツは、水分量が極めて少なく細菌が繁殖できないため、基本的に腐りません。エジプトのピラミッドから発見された数千年前のハチミツも、まだ食べられる状態でした。"
+            },
+            {
+                question: "タコの心臓はいくつある？",
+                options: ["1つ", "2つ", "3つ", "4つ"],
+                correct: 2,
+                explanation: "タコには心臓が3つあります。1つは全身に血液を送るメインの心臓、残りの2つはエラに血液を送るための「エラ心臓」です。"
+            },
+            {
+                question: "「イチゴ」は植物学的な分類で言うと、次のうちどれ？",
+                options: ["ベリー類", "バラ科", "ウリ科", "ナス科"],
+                correct: 1,
+                explanation: "イチゴは植物学上「ベリー」ではなく「バラ科」に属します。逆に、スイカやバナナは植物学上「ベリー（液果）」に分類されることが多いです。"
+            },
+            {
+                question: "ウォンバットのフンの形は？",
+                options: ["球形", "ピラミッド型", "立方体（四角）", "星型"],
+                correct: 2,
+                explanation: "ウォンバットは世界で唯一「立方体（サイコロ状）」のフンをする動物です。これにより、フンが転がらずに縄張りの目印として機能します。"
+            },
+            {
+                question: "地球上の「木」の数と、天の川銀河の「星」の数、どちらが多い？",
+                options: ["木のほうが多い", "星のほうが多い", "ほぼ同じ", "星のほうが圧倒的に多い"],
+                correct: 0,
+                explanation: "推定によると、天の川銀河の星は約1000億〜4000億個ですが、地球上の木の数は約3兆本と言われており、木の方が圧倒的に多いのです。"
+            },
+            {
+                question: "エッフェル塔は夏になるとどうなる？",
+                options: ["色が濃くなる", "15cmほど高くなる", "傾く", "重くなる"],
+                correct: 1,
+                explanation: "鉄は熱で膨張するため、夏の日差しで温められたエッフェル塔は、冬に比べて最大15cmほど高くなります（熱膨張）。"
+            },
+            {
+                question: "金星の「1日」と「1年」、どちらが長い？",
+                options: ["1日が長い", "1年が長い", "同じ", "季節による"],
+                correct: 0,
+                explanation: "金星の自転は非常に遅く、1回転するのに地球の日数で約243日かかります。公転（1年）は約225日なので、金星では1年よりも1日の方が長いのです。"
+            },
+            {
+                question: "スコットランドの国獣（象徴する動物）は？",
+                options: ["ライオン", "ドラゴン", "ユニコーン", "グリフォン"],
+                correct: 2,
+                explanation: "スコットランドの国獣はなんと架空の動物「ユニコーン」です。イングランドのライオン（天敵とされる）に対抗するシンボルとして選ばれました。"
+            },
+            {
+                question: "歴史上最も短かった戦争の時間は？",
+                options: ["38分", "1日", "1週間", "3時間"],
+                correct: 0,
+                explanation: "1896年のイギリス・ザンジバル戦争は、開始からわずか38分（諸説あり40分〜45分とも）でザンジバルが降伏し終結しました。"
+            },
+            {
+                question: "牛には「親友」がいる？",
+                options: ["いない", "いる", "群れ全員が親友", "親子間のみ"],
+                correct: 1,
+                explanation: "研究によると、牛には特定の仲の良い「親友」がおり、その親友と引き離されると心拍数が上がり、強いストレスを感じることが分かっています。"
+            }
+        ];
+
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let isAnswering = false;
+
+        const startScreen = document.getElementById('start-screen');
+        const quizScreen = document.getElementById('quiz-screen');
+        const resultScreen = document.getElementById('result-screen');
+        const questionText = document.getElementById('question-text');
+        const optionsContainer = document.getElementById('options-container');
+        const explanationCard = document.getElementById('explanation-card');
+        const explanationText = document.getElementById('explanation-text');
+        const explanationLabel = document.getElementById('explanation-label');
+        const nextBtn = document.getElementById('next-btn');
+        const progressBarFill = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+
+        function startGame() {
+            startScreen.classList.add('hidden');
+            quizScreen.classList.remove('hidden');
+            currentQuestionIndex = 0;
+            score = 0;
+            showQuestion();
+        }
+
+        function showQuestion() {
+            isAnswering = true;
+            nextBtn.classList.add('hidden');
+            explanationCard.style.display = 'none';
+            document.body.className = ''; // Reset background flash
+
+            const q = questions[currentQuestionIndex];
+            questionText.textContent = q.question;
+
+            // Update Progress
+            const progressPercent = ((currentQuestionIndex) / questions.length) * 100;
+            progressBarFill.style.width = `${progressPercent}%`;
+            progressText.textContent = `Question ${currentQuestionIndex + 1} / ${questions.length}`;
+
+            optionsContainer.innerHTML = '';
+            q.options.forEach((option, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = option;
+                btn.onclick = () => checkAnswer(index, btn);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex, btn) {
+            if (!isAnswering) return;
+            isAnswering = false;
+
+            const q = questions[currentQuestionIndex];
+            const correctIndex = q.correct;
+            const buttons = optionsContainer.querySelectorAll('.option-btn');
+
+            if (selectedIndex === correctIndex) {
+                btn.classList.add('correct');
+                score++;
+                document.body.classList.add('flash-green');
+                explanationLabel.textContent = "正解！";
+                explanationLabel.style.color = "#4CAF50";
+            } else {
+                btn.classList.add('incorrect');
+                buttons[correctIndex].classList.add('correct');
+                document.body.classList.add('flash-red');
+                explanationLabel.textContent = "残念...";
+                explanationLabel.style.color = "#F44336";
+            }
+
+            // Show Explanation
+            explanationText.textContent = q.explanation;
+            explanationCard.style.display = 'block';
+            nextBtn.classList.remove('hidden');
+
+            // Scroll to bottom to show explanation on mobile if needed
+            setTimeout(() => {
+                nextBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 100);
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            if (currentQuestionIndex < questions.length) {
+                showQuestion();
+            } else {
+                showFinalResult();
+            }
+        }
+
+        function showFinalResult() {
+            quizScreen.classList.add('hidden');
+            resultScreen.classList.remove('hidden');
+            document.body.className = ''; // Reset background
+
+            const finalScoreEl = document.getElementById('final-score');
+            const resultMessageEl = document.getElementById('result-message');
+
+            finalScoreEl.textContent = `${score} / ${questions.length}`;
+
+            if (score === 10) {
+                resultMessageEl.textContent = "素晴らしい！あなたは雑学王です！👑";
+            } else if (score >= 7) {
+                resultMessageEl.textContent = "すごい！かなりの雑学知識を持っていますね。";
+            } else if (score >= 4) {
+                resultMessageEl.textContent = "なかなかの健闘です。目指せ全問正解！";
+            } else {
+                resultMessageEl.textContent = "伸び代がありますね！新しい知識をゲットしました。";
+            }
+        }
+    </script>
+</body>
+
+</html>
