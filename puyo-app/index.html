@@ -335,7 +335,7 @@
             return true;
         }
 
-        async function rotate() {
+        function rotate() {
             if (isGameOver || isProcessing) return;
 
             const nextRot = (activePiece.rotation + 1) % 4;
@@ -375,7 +375,7 @@
             // If all fail, do not rotate
         }
 
-        async function move(dx, dy) {
+        function move(dx, dy) {
             if (isGameOver || isProcessing) return false;
 
             const nextX = activePiece.x + dx;
