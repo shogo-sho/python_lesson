@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Puyo Game v2</title>
+    <title>Puyo Game v3 - Rotation</title>
     <style>
         :root {
             --cell-size: 40px;
@@ -62,6 +62,14 @@
             box-sizing: border-box;
             transition: transform 0.05s linear;
             /* Faster transition for responsive feel */
+        }
+
+        /* Animation for disappearing puyos */
+        .puyo.vanishing {
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+            opacity: 0;
+            transform: scale(1.5);
+            z-index: 10;
         }
 
         .puyo-inner {
@@ -128,23 +136,37 @@
         .controls-area {
             margin-top: 20px;
             display: flex;
-            gap: 20px;
+            gap: 15px;
+            flex-wrap: wrap;
+            /* allow wrapping on small screens */
+            justify-content: center;
         }
 
         button {
             background: #444;
             border: 1px solid #666;
             color: white;
-            padding: 15px 30px;
+            padding: 15px 25px;
             font-size: 1.2rem;
             border-radius: 8px;
             cursor: pointer;
             user-select: none;
             transition: background 0.1s;
+            min-width: 60px;
         }
 
         button:active {
             background: #666;
+        }
+
+        #btn-rotate {
+            background: #e67e22;
+            /* Different color for rotate */
+            border-color: #d35400;
+        }
+
+        #btn-rotate:active {
+            background: #d35400;
         }
     </style>
 </head>
@@ -163,6 +185,7 @@
         <button id="btn-left">◀</button>
         <button id="btn-down">▼</button>
         <button id="btn-right">▶</button>
+        <button id="btn-rotate">↻</button>
     </div>
 
     <script>
@@ -170,7 +193,7 @@
         const COLS = 6;
         const ROWS = 12;
         const CELL_SIZE = 40;
-        const GRAVITY_MS = 600; // Making it slightly faster for fun
+        const GRAVITY_MS = 600;
 
         const COLORS = ['red', 'blue', 'green', 'yellow'];
 
@@ -178,22 +201,26 @@
         // grid[row][col] -> null or string (color class name)
         let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
 
-        // Active Piece (2 vertically connected puyos)
+        // Active Piece
+        // x, y is the position of the MAIN (Axis) puyo.
+        // rotation: 0=Up(child above), 1=Right(child right), 2=Down(child below), 3=Left(child left)
         let activePiece = {
             x: 2,
             y: 0,
-            colors: ['red', 'red'] // [bottom, top]
+            colors: ['red', 'red'], // [axis_color, satellite_color]
+            rotation: 0
         };
 
         let gameInterval = null;
         let isGameOver = false;
-        let isProcessing = false; // To block input during chain reactions
+        let isProcessing = false;
 
         // === DOM Elements ===
         const boardEl = document.getElementById('board');
         const btnLeft = document.getElementById('btn-left');
         const btnRight = document.getElementById('btn-right');
         const btnDown = document.getElementById('btn-down');
+        const btnRotate = document.getElementById('btn-rotate');
 
         // === Helper Functions ===
         function sleep(ms) {
@@ -204,10 +231,28 @@
             return COLORS[Math.floor(Math.random() * COLORS.length)];
         }
 
-        function createPuyoElement(color, x, y) {
+        function createPuyoElement(color, x, y, isVanishing = false) {
             const el = document.createElement('div');
             el.className = `puyo puyo-${color}`;
+            if (isVanishing) el.classList.add('vanishing');
+            // Check if x, y have changed recently for smooth animation? 
+            // Standard CSS transition handles moves.
+
+            // Adjust for vanishing scale origin center? default is center.
             el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px)`;
+            if (isVanishing) {
+                // We want to keep the translate but add scale. 
+                // However, CSS transform overwrites. So we need to include scale here or use a wrapper.
+                // The CSS rule 'transform: scale(1.5)' in .vanishing won't work if inline style has translate.
+                // Let's modify the inline style if vanishing.
+                el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(0)`;
+                // actually 'scale(0)' to shrink, or 'scale(1.5)' and opacity 0.
+                // Let's rely on class order? No, inline beats class.
+                // We must apply the transform in JS or use !important in CSS.
+                // Let's use JS to set the final state.
+                el.style.opacity = '0';
+                el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px) scale(1.5)`;
+            }
 
             const inner = document.createElement('div');
             inner.className = 'puyo-inner';
@@ -224,22 +269,35 @@
             return el;
         }
 
+        // Returns [dx, dy] for the satellite puyo relative to axis based on rotation
+        function getSatelliteOffset(rot) {
+            switch (rot) {
+                case 0: return [0, -1]; // Above
+                case 1: return [1, 0];  // Right
+                case 2: return [0, 1];  // Below
+                case 3: return [-1, 0]; // Left
+            }
+            return [0, -1];
+        }
+
         // === Core Logic ===
 
         function spawnPuyo() {
             if (isGameOver) return;
 
             const newColors = [getRandomColor(), getRandomColor()];
-            // Spawn: Bottom Puyo at (2, 1), Top Puyo at (2, 0)
-            // (Assuming row 0 is the very top visible row)
+            // Spawn: Axis at (2, 1), Satellite at (2, 0) (Rotation 0)
             activePiece = {
                 x: 2,
                 y: 1,
-                colors: newColors
+                colors: newColors,
+                rotation: 0
             };
 
-            // Check collision immediately upon spawn
-            if (!isValidPosition(activePiece.x, activePiece.y) || !isValidPosition(activePiece.x, activePiece.y - 1)) {
+            const [sdx, sdy] = getSatelliteOffset(0);
+            // Check collision immediately
+            if (!isValidPosition(activePiece.x, activePiece.y) ||
+                !isValidPosition(activePiece.x + sdx, activePiece.y + sdy)) {
                 gameOver();
                 return;
             }
@@ -257,35 +315,75 @@
         }
 
         function isValidPosition(x, y) {
-            // Out of bounds (Left/Right/Bottom)
             if (x < 0 || x >= COLS) return false;
             if (y >= ROWS) return false;
-
-            // Note: y < 0 is allowed for the top puyo physically,
-            // but for collision checks against the grid, we only check y >= 0.
             if (y >= 0 && grid[y][x] !== null) return false;
+            return true;
+        }
+
+        // Check if the whole piece (axis + satellite) is valid
+        function isActiveValid(ax, ay, rot) {
+            // Check axis
+            if (!isValidPosition(ax, ay)) return false;
+
+            // Check satellite
+            const [sdx, sdy] = getSatelliteOffset(rot);
+            const sx = ax + sdx;
+            const sy = ay + sdy;
+            if (!isValidPosition(sx, sy)) return false;
 
             return true;
         }
 
-        function canMove(dx, dy) {
-            const newX = activePiece.x + dx;
-            const newY = activePiece.y + dy;
+        async function rotate() {
+            if (isGameOver || isProcessing) return;
 
-            // Check bottom puyo
-            if (!isValidPosition(newX, newY)) return false;
-            // Check top puyo
-            if (!isValidPosition(newX, newY - 1)) return false;
+            const nextRot = (activePiece.rotation + 1) % 4;
+            let nextX = activePiece.x;
+            let nextY = activePiece.y;
 
-            return true;
+            // Basic check
+            if (isActiveValid(nextX, nextY, nextRot)) {
+                activePiece.rotation = nextRot;
+                render();
+                return;
+            }
+
+            // Wall Kicks / Floor Kicks
+            // Try shifting Left
+            if (isActiveValid(nextX - 1, nextY, nextRot)) {
+                activePiece.x -= 1;
+                activePiece.rotation = nextRot;
+                render();
+                return;
+            }
+            // Try shifting Right
+            if (isActiveValid(nextX + 1, nextY, nextRot)) {
+                activePiece.x += 1;
+                activePiece.rotation = nextRot;
+                render();
+                return;
+            }
+            // Try shifting Up (Floor kick) logic usually for rotation stuck at bottom
+            if (isActiveValid(nextX, nextY - 1, nextRot)) {
+                activePiece.y -= 1;
+                activePiece.rotation = nextRot;
+                render();
+                return;
+            }
+
+            // If all fail, do not rotate
         }
 
         async function move(dx, dy) {
             if (isGameOver || isProcessing) return false;
 
-            if (canMove(dx, dy)) {
-                activePiece.x += dx;
-                activePiece.y += dy;
+            const nextX = activePiece.x + dx;
+            const nextY = activePiece.y + dy;
+
+            if (isActiveValid(nextX, nextY, activePiece.rotation)) {
+                activePiece.x = nextX;
+                activePiece.y = nextY;
                 render();
                 return true;
             }
@@ -293,63 +391,48 @@
         }
 
         async function drop() {
-            if (isGameOver || isProcessing) return;
+            if (isGameOver || isProcessing) return; // Prevent double drop logic
 
-            // Try moving down
-            if (!canMove(0, 1)) {
-                // If cannot move down, lock
+            if (!move(0, 1)) {
                 await lockPiece();
-            } else {
-                activePiece.y += 1;
-                render();
             }
         }
 
         async function lockPiece() {
-            isProcessing = true; // Block input
+            isProcessing = true;
 
-            // 1. Lock current piece into grid
-            // Lock bottom
-            if (activePiece.y >= 0 && activePiece.y < ROWS) {
-                grid[activePiece.y][activePiece.x] = activePiece.colors[0];
-            }
-            // Lock top
-            const topY = activePiece.y - 1;
-            if (topY >= 0 && topY < ROWS) {
-                grid[topY][activePiece.x] = activePiece.colors[1];
-            }
+            const { x, y, rotation, colors } = activePiece;
+            const [sdx, sdy] = getSatelliteOffset(rotation);
+            const sx = x + sdx;
+            const sy = y + sdy;
 
-            // Hide active piece (it's now part of grid)
-            // Render grid to show the newly locked puyos
-            render(true); // pass flag that we are in processing mode (hide active)
+            // Lock Axis
+            if (y >= 0 && y < ROWS) grid[y][x] = colors[0];
+            // Lock Satellite (child)
+            if (sy >= 0 && sy < ROWS) grid[sy][sx] = colors[1];
 
-            // 2. Chain Reaction Loop
+            render(true);
+
+            // Chain Reaction Loop
             while (true) {
-                // Apply Gravity first? No, pieces are locked in place.
-                // Wait, if we spawned above holes? Unlikely in standard drop.
-                // But check matches immediately.
-
                 const matches = findMatches();
                 if (matches.length === 0) break;
 
-                // Visual pause before clearing
-                await sleep(400);
+                // 1. Highlight matches (add vanishing class via render)
+                render(true, matches);
+                await sleep(500); // Wait for transition
 
-                // Remove matches
+                // 2. Remove matches
                 for (const { r, c } of matches) {
                     grid[r][c] = null;
                 }
-                render(true); // update view
+                render(true);
+                await sleep(200);
 
-                // Visual pause before falling
-                await sleep(400);
-
-                // Apply Gravity
+                // 3. Gravity
                 applyGravity();
                 render(true);
-
-                // Visual pause after falling (before next check)
-                await sleep(400);
+                await sleep(300);
             }
 
             isProcessing = false;
@@ -371,7 +454,6 @@
                         while (queue.length > 0) {
                             const curr = queue.pop();
                             group.push(curr);
-
                             const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
                             for (const [dr, dc] of dirs) {
                                 const nr = curr.r + dr;
@@ -384,7 +466,6 @@
                                 }
                             }
                         }
-
                         if (group.length >= 4) {
                             allMatches.push(...group);
                         }
@@ -397,33 +478,28 @@
         function applyGravity() {
             for (let c = 0; c < COLS; c++) {
                 let newCol = [];
-                // Collect valid blocks
                 for (let r = 0; r < ROWS; r++) {
-                    if (grid[r][c] !== null) {
-                        newCol.push(grid[r][c]);
-                    }
+                    if (grid[r][c] !== null) newCol.push(grid[r][c]);
                 }
-                // Fill from bottom up
                 for (let r = ROWS - 1; r >= 0; r--) {
-                    if (newCol.length > 0) {
-                        grid[r][c] = newCol.pop();
-                    } else {
-                        grid[r][c] = null;
-                    }
+                    grid[r][c] = newCol.length > 0 ? newCol.pop() : null;
                 }
             }
         }
 
-        // === Rendering ===
-        function render(hideActive = false) {
-            boardEl.innerHTML = ''; // Clear board
+        // Render function: hideActive hides the floating piece. matchingCells is list of {r,c} to animate.
+        function render(hideActive = false, matchingCells = []) {
+            boardEl.innerHTML = '';
+
+            // Helper to check if a cell is in matchingCells
+            const isMatching = (r, c) => matchingCells.some(m => m.r === r && m.c === c);
 
             // 1. Render Grid
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const color = grid[r][c];
                     if (color) {
-                        const el = createPuyoElement(color, c, r);
+                        const el = createPuyoElement(color, c, r, isMatching(r, c));
                         boardEl.appendChild(el);
                     }
                 }
@@ -431,31 +507,31 @@
 
             // 2. Render Active Piece
             if (!isGameOver && !hideActive && !isProcessing) {
-                // Bottom
-                const bottomEl = createPuyoElement(activePiece.colors[0], activePiece.x, activePiece.y);
-                boardEl.appendChild(bottomEl);
-                // Top
-                const topEl = createPuyoElement(activePiece.colors[1], activePiece.x, activePiece.y - 1);
-                boardEl.appendChild(topEl);
+                // Axis
+                const axisEl = createPuyoElement(activePiece.colors[0], activePiece.x, activePiece.y);
+                boardEl.appendChild(axisEl);
+
+                // Satellite
+                const [sdx, sdy] = getSatelliteOffset(activePiece.rotation);
+                const satEl = createPuyoElement(activePiece.colors[1], activePiece.x + sdx, activePiece.y + sdy);
+                boardEl.appendChild(satEl);
             }
         }
 
         // === Input Handling ===
         document.addEventListener('keydown', (e) => {
-            if (["ArrowLeft", "ArrowRight", "ArrowDown"].includes(e.key)) {
+            if (["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", " "].includes(e.key)) {
                 e.preventDefault();
             }
             if (isGameOver || isProcessing) return;
 
             switch (e.key) {
-                case 'ArrowLeft':
-                    move(-1, 0);
-                    break;
-                case 'ArrowRight':
-                    move(1, 0);
-                    break;
-                case 'ArrowDown':
-                    drop();
+                case 'ArrowLeft': move(-1, 0); break;
+                case 'ArrowRight': move(1, 0); break;
+                case 'ArrowDown': drop(); break;
+                case 'ArrowUp':
+                case ' ':
+                    rotate();
                     break;
             }
         });
@@ -463,9 +539,10 @@
         btnLeft.addEventListener('click', () => move(-1, 0));
         btnRight.addEventListener('click', () => move(1, 0));
         btnDown.addEventListener('click', () => drop());
+        if (btnRotate) btnRotate.addEventListener('click', () => rotate());
 
         // === Init ===
-        spawnPuyo(); // Start
+        spawnPuyo();
         gameInterval = setInterval(drop, GRAVITY_MS);
 
     </script>
