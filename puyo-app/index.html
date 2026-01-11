@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Puyo Game v2</title>
+    <style>
+        :root {
+            --cell-size: 40px;
+            --bg-color: #222;
+            --board-bg: #000;
+            --border-color: #444;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #eee;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            /* Prevent scrolling with arrow keys */
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 1.5rem;
+        }
+
+        /* Game Board Area */
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        #board {
+            width: calc(var(--cell-size) * 6);
+            height: calc(var(--cell-size) * 12);
+            background-color: var(--board-bg);
+            position: relative;
+            border: 4px solid var(--border-color);
+            /* Grid lines */
+            background-image:
+                linear-gradient(#111 1px, transparent 1px),
+                linear-gradient(90deg, #111 1px, transparent 1px);
+            background-size: var(--cell-size) var(--cell-size);
+        }
+
+        /* The Puyo */
+        .puyo {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            position: absolute;
+            top: 0;
+            left: 0;
+            padding: 2px;
+            box-sizing: border-box;
+            transition: transform 0.05s linear;
+            /* Faster transition for responsive feel */
+        }
+
+        .puyo-inner {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            box-shadow:
+                inset -3px -3px 8px rgba(0, 0, 0, 0.4),
+                inset 3px 3px 8px rgba(255, 255, 255, 0.4);
+        }
+
+        /* Colors */
+        .puyo-red .puyo-inner {
+            background-color: #e74c3c;
+            box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.4), inset 3px 3px 8px rgba(255, 255, 255, 0.4), 0 0 5px #e74c3c;
+        }
+
+        .puyo-blue .puyo-inner {
+            background-color: #3498db;
+            box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.4), inset 3px 3px 8px rgba(255, 255, 255, 0.4), 0 0 5px #3498db;
+        }
+
+        .puyo-green .puyo-inner {
+            background-color: #2ecc71;
+            box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.4), inset 3px 3px 8px rgba(255, 255, 255, 0.4), 0 0 5px #2ecc71;
+        }
+
+        .puyo-yellow .puyo-inner {
+            background-color: #f1c40f;
+            box-shadow: inset -3px -3px 8px rgba(0, 0, 0, 0.4), inset 3px 3px 8px rgba(255, 255, 255, 0.4), 0 0 5px #f1c40f;
+        }
+
+        /* Eyes */
+        .eye {
+            position: absolute;
+            background: white;
+            width: 25%;
+            height: 25%;
+            border-radius: 50%;
+            top: 20%;
+        }
+
+        .eye.left {
+            left: 20%;
+        }
+
+        .eye.right {
+            right: 20%;
+        }
+
+        .eye::after {
+            content: '';
+            position: absolute;
+            background: black;
+            width: 40%;
+            height: 40%;
+            border-radius: 50%;
+            top: 30%;
+            right: 20%;
+        }
+
+        /* Controls */
+        .controls-area {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+        }
+
+        button {
+            background: #444;
+            border: 1px solid #666;
+            color: white;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.1s;
+        }
+
+        button:active {
+            background: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Puyo Drop & Stack</h1>
+
+    <div id="game-container">
+        <div id="board">
+            <!-- Game elements will be injected here -->
+        </div>
+    </div>
+
+    <div class="controls-area">
+        <button id="btn-left">◀</button>
+        <button id="btn-down">▼</button>
+        <button id="btn-right">▶</button>
+    </div>
+
+    <script>
+        // === Game Constants ===
+        const COLS = 6;
+        const ROWS = 12;
+        const CELL_SIZE = 40;
+        const GRAVITY_MS = 600; // Making it slightly faster for fun
+
+        const COLORS = ['red', 'blue', 'green', 'yellow'];
+
+        // === Game State ===
+        // grid[row][col] -> null or string (color class name)
+        let grid = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+
+        // Active Piece (2 vertically connected puyos)
+        let activePiece = {
+            x: 2,
+            y: 0,
+            colors: ['red', 'red'] // [bottom, top]
+        };
+
+        let gameInterval = null;
+        let isGameOver = false;
+        let isProcessing = false; // To block input during chain reactions
+
+        // === DOM Elements ===
+        const boardEl = document.getElementById('board');
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+        const btnDown = document.getElementById('btn-down');
+
+        // === Helper Functions ===
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function getRandomColor() {
+            return COLORS[Math.floor(Math.random() * COLORS.length)];
+        }
+
+        function createPuyoElement(color, x, y) {
+            const el = document.createElement('div');
+            el.className = `puyo puyo-${color}`;
+            el.style.transform = `translate(${x * CELL_SIZE}px, ${y * CELL_SIZE}px)`;
+
+            const inner = document.createElement('div');
+            inner.className = 'puyo-inner';
+
+            const eyeL = document.createElement('div');
+            eyeL.className = 'eye left';
+            const eyeR = document.createElement('div');
+            eyeR.className = 'eye right';
+
+            inner.appendChild(eyeL);
+            inner.appendChild(eyeR);
+            el.appendChild(inner);
+
+            return el;
+        }
+
+        // === Core Logic ===
+
+        function spawnPuyo() {
+            if (isGameOver) return;
+
+            const newColors = [getRandomColor(), getRandomColor()];
+            // Spawn: Bottom Puyo at (2, 1), Top Puyo at (2, 0)
+            // (Assuming row 0 is the very top visible row)
+            activePiece = {
+                x: 2,
+                y: 1,
+                colors: newColors
+            };
+
+            // Check collision immediately upon spawn
+            if (!isValidPosition(activePiece.x, activePiece.y) || !isValidPosition(activePiece.x, activePiece.y - 1)) {
+                gameOver();
+                return;
+            }
+
+            render();
+        }
+
+        function gameOver() {
+            isGameOver = true;
+            clearInterval(gameInterval);
+            const h1 = document.querySelector('h1');
+            h1.innerText = "Game Over!!";
+            h1.style.color = "#e74c3c";
+            alert("Game Over!");
+        }
+
+        function isValidPosition(x, y) {
+            // Out of bounds (Left/Right/Bottom)
+            if (x < 0 || x >= COLS) return false;
+            if (y >= ROWS) return false;
+
+            // Note: y < 0 is allowed for the top puyo physically,
+            // but for collision checks against the grid, we only check y >= 0.
+            if (y >= 0 && grid[y][x] !== null) return false;
+
+            return true;
+        }
+
+        function canMove(dx, dy) {
+            const newX = activePiece.x + dx;
+            const newY = activePiece.y + dy;
+
+            // Check bottom puyo
+            if (!isValidPosition(newX, newY)) return false;
+            // Check top puyo
+            if (!isValidPosition(newX, newY - 1)) return false;
+
+            return true;
+        }
+
+        async function move(dx, dy) {
+            if (isGameOver || isProcessing) return false;
+
+            if (canMove(dx, dy)) {
+                activePiece.x += dx;
+                activePiece.y += dy;
+                render();
+                return true;
+            }
+            return false;
+        }
+
+        async function drop() {
+            if (isGameOver || isProcessing) return;
+
+            // Try moving down
+            if (!canMove(0, 1)) {
+                // If cannot move down, lock
+                await lockPiece();
+            } else {
+                activePiece.y += 1;
+                render();
+            }
+        }
+
+        async function lockPiece() {
+            isProcessing = true; // Block input
+
+            // 1. Lock current piece into grid
+            // Lock bottom
+            if (activePiece.y >= 0 && activePiece.y < ROWS) {
+                grid[activePiece.y][activePiece.x] = activePiece.colors[0];
+            }
+            // Lock top
+            const topY = activePiece.y - 1;
+            if (topY >= 0 && topY < ROWS) {
+                grid[topY][activePiece.x] = activePiece.colors[1];
+            }
+
+            // Hide active piece (it's now part of grid)
+            // Render grid to show the newly locked puyos
+            render(true); // pass flag that we are in processing mode (hide active)
+
+            // 2. Chain Reaction Loop
+            while (true) {
+                // Apply Gravity first? No, pieces are locked in place.
+                // Wait, if we spawned above holes? Unlikely in standard drop.
+                // But check matches immediately.
+
+                const matches = findMatches();
+                if (matches.length === 0) break;
+
+                // Visual pause before clearing
+                await sleep(400);
+
+                // Remove matches
+                for (const { r, c } of matches) {
+                    grid[r][c] = null;
+                }
+                render(true); // update view
+
+                // Visual pause before falling
+                await sleep(400);
+
+                // Apply Gravity
+                applyGravity();
+                render(true);
+
+                // Visual pause after falling (before next check)
+                await sleep(400);
+            }
+
+            isProcessing = false;
+            spawnPuyo();
+        }
+
+        function findMatches() {
+            let visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+            let allMatches = [];
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (grid[r][c] && !visited[r][c]) {
+                        const color = grid[r][c];
+                        const group = [];
+                        const queue = [{ r, c }];
+                        visited[r][c] = true;
+
+                        while (queue.length > 0) {
+                            const curr = queue.pop();
+                            group.push(curr);
+
+                            const dirs = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+                            for (const [dr, dc] of dirs) {
+                                const nr = curr.r + dr;
+                                const nc = curr.c + dc;
+                                if (nr >= 0 && nr < ROWS && nc >= 0 && nc < COLS) {
+                                    if (!visited[nr][nc] && grid[nr][nc] === color) {
+                                        visited[nr][nc] = true;
+                                        queue.push({ r: nr, c: nc });
+                                    }
+                                }
+                            }
+                        }
+
+                        if (group.length >= 4) {
+                            allMatches.push(...group);
+                        }
+                    }
+                }
+            }
+            return allMatches;
+        }
+
+        function applyGravity() {
+            for (let c = 0; c < COLS; c++) {
+                let newCol = [];
+                // Collect valid blocks
+                for (let r = 0; r < ROWS; r++) {
+                    if (grid[r][c] !== null) {
+                        newCol.push(grid[r][c]);
+                    }
+                }
+                // Fill from bottom up
+                for (let r = ROWS - 1; r >= 0; r--) {
+                    if (newCol.length > 0) {
+                        grid[r][c] = newCol.pop();
+                    } else {
+                        grid[r][c] = null;
+                    }
+                }
+            }
+        }
+
+        // === Rendering ===
+        function render(hideActive = false) {
+            boardEl.innerHTML = ''; // Clear board
+
+            // 1. Render Grid
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const color = grid[r][c];
+                    if (color) {
+                        const el = createPuyoElement(color, c, r);
+                        boardEl.appendChild(el);
+                    }
+                }
+            }
+
+            // 2. Render Active Piece
+            if (!isGameOver && !hideActive && !isProcessing) {
+                // Bottom
+                const bottomEl = createPuyoElement(activePiece.colors[0], activePiece.x, activePiece.y);
+                boardEl.appendChild(bottomEl);
+                // Top
+                const topEl = createPuyoElement(activePiece.colors[1], activePiece.x, activePiece.y - 1);
+                boardEl.appendChild(topEl);
+            }
+        }
+
+        // === Input Handling ===
+        document.addEventListener('keydown', (e) => {
+            if (["ArrowLeft", "ArrowRight", "ArrowDown"].includes(e.key)) {
+                e.preventDefault();
+            }
+            if (isGameOver || isProcessing) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    move(-1, 0);
+                    break;
+                case 'ArrowRight':
+                    move(1, 0);
+                    break;
+                case 'ArrowDown':
+                    drop();
+                    break;
+            }
+        });
+
+        btnLeft.addEventListener('click', () => move(-1, 0));
+        btnRight.addEventListener('click', () => move(1, 0));
+        btnDown.addEventListener('click', () => drop());
+
+        // === Init ===
+        spawnPuyo(); // Start
+        gameInterval = setInterval(drop, GRAVITY_MS);
+
+    </script>
+</body>
+
+</html>
