@@ -4,265 +4,212 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Project Lab</title>
+    <title>My Game Collection</title>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f1016;
-            --card-bg: rgba(255, 255, 255, 0.03);
-            --header-bg: rgba(15, 16, 22, 0.8);
-            --accent-primary: #00f2ea;
-            --accent-secondary: #ff0055;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0b0;
-            --glass-border: rgba(255, 255, 255, 0.08);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --accent-color: #ff4757;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --font-main: 'M PLUS Rounded 1c', sans-serif;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image:
-                radial-gradient(circle at 10% 20%, rgba(0, 242, 234, 0.05) 0%, transparent 40%),
-                radial-gradient(circle at 90% 80%, rgba(255, 0, 85, 0.05) 0%, transparent 40%);
-            color: var(--text-primary);
+            background-image: radial-gradient(#e0e0e0 1px, transparent 1px);
+            background-size: 20px 20px;
+            font-family: var(--font-main);
+            margin: 0;
+            padding: 20px;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            color: var(--text-color);
         }
 
         header {
             text-align: center;
-            padding: 60px 20px 40px;
-            position: relative;
+            margin-bottom: 40px;
+            padding-top: 20px;
         }
 
-        header h1 {
+        h1 {
             font-size: 2.5rem;
-            font-weight: 800;
-            letter-spacing: -1px;
-            margin-bottom: 10px;
-            background: linear-gradient(135deg, #fff 0%, #a0a0b0 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: #2c3e50;
+            margin: 0;
+            display: inline-block;
+            padding: 10px 30px;
+            background: white;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px var(--shadow-color);
         }
 
-        header p {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        main {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+        .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 24px;
-            padding-bottom: 60px;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
         }
 
-        .card {
+        .game-card {
             background: var(--card-bg);
-            border: 1px solid var(--glass-border);
             border-radius: 20px;
-            padding: 30px;
+            padding: 20px;
             text-decoration: none;
-            color: var(--text-primary);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-            position: relative;
-            overflow: hidden;
+            color: var(--text-color);
             display: flex;
             flex-direction: column;
-            backdrop-filter: blur(10px);
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.06);
-            border-color: rgba(255, 255, 255, 0.2);
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-        }
-
-        .card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .card:hover::before {
-            opacity: 1;
-        }
-
-        .icon-box {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            width: 60px;
-            height: 60px;
-            display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 12px;
+            aspect-ratio: 1 / 1.2;
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
+            box-shadow: 0 4px 10px var(--shadow-color);
+            position: relative;
+            overflow: hidden;
         }
 
-        .card h2 {
-            font-size: 1.5rem;
+        .game-card:hover {
+            transform: translateY(-10px) scale(1.02);
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
+            z-index: 10;
+        }
+
+        .icon-container {
+            font-size: 4rem;
+            margin-bottom: 15px;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.1));
+            transition: transform 0.3s;
+        }
+
+        .game-card:hover .icon-container {
+            transform: scale(1.1);
+        }
+
+        .game-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            text-align: center;
+            margin-top: auto;
             margin-bottom: 10px;
-            font-weight: 600;
+            color: #2c3e50;
         }
 
-        .card p {
-            color: var(--text-secondary);
-            font-size: 0.95rem;
-            line-height: 1.5;
-            flex-grow: 1;
+        .game-desc {
+            font-size: 0.8rem;
+            color: #666;
+            text-align: center;
+            opacity: 0;
+            height: 0;
+            overflow: hidden;
+            transition: all 0.3s;
         }
 
-        .card-arrow {
-            margin-top: 20px;
-            display: flex;
-            align-items: center;
-            color: var(--accent-primary);
-            font-weight: 500;
-            font-size: 0.9rem;
+        /* New badge */
+        .badge {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: var(--accent-color);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            transform: rotate(15deg);
         }
 
-        .card-arrow svg {
-            margin-left: 8px;
-            transition: transform 0.2s;
-        }
-
-        .card:hover .card-arrow svg {
-            transform: translateX(5px);
-        }
-
-        @media (max-width: 768px) {
-            header h1 {
-                font-size: 2rem;
+        @media (max-width: 600px) {
+            .grid-container {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
             }
 
-            main {
-                grid-template-columns: 1fr;
+            h1 {
+                font-size: 1.8rem;
             }
         }
     </style>
 </head>
 
 <body>
+
     <header>
-        <h1>My Project Lab</h1>
-        <p>A collection of web apps & games built with Python Lesson.</p>
+        <h1>My Game Collection</h1>
     </header>
 
-    <main>
-        <!-- English Flashcards -->
-        <a href="english-app/index.html" class="card">
-            <div class="icon-box">🔤</div>
-            <h2>English Cards</h2>
-            <p>3Dアニメーション付きの単語帳。重要英単語15選を効率よくマスター。</p>
-            <div class="card-arrow">Start Learning <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+    <div class="grid-container">
+
+        <!-- Sudoku -->
+        <a href="sudoku-app/index.html" class="game-card">
+            <div class="badge">NEW!</div>
+            <div class="icon-container">🔢</div>
+            <div class="game-title">Sudoku</div>
+            <div class="game-desc">Logic Puzzle</div>
         </a>
 
-        <!-- Trivia App -->
-        <a href="trivia-app/index.html" class="card">
-            <div class="icon-box">🧠</div>
-            <h2>Trivia Master</h2>
-            <p>10問の面白雑学クイズ。正解の快感と新しい知識をあなたに。プログレスバー、解説付き。</p>
-            <div class="card-arrow">Play Now <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <!-- Retro RPG -->
+        <a href="mini-rpg/index.html" class="game-card">
+            <div class="icon-container">⚔️</div>
+            <div class="game-title">Retro RPG</div>
+            <div class="game-desc">Text Adventure</div>
         </a>
 
-        <!-- 2048 Game -->
-        <a href="game-2048/index.html" class="card">
-            <div class="icon-box">🧩</div>
-            <h2>2048 Puzzle</h2>
-            <p>数字を重ねて2048を目指せ！シンプルながら中毒性の高いパズルゲーム。</p>
-            <div class="card-arrow">Play Now <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <!-- English Cards -->
+        <a href="english-app/index.html" class="game-card">
+            <div class="icon-container">🔤</div>
+            <div class="game-title">English Flash</div>
+            <div class="game-desc">Learn Words</div>
         </a>
 
-        <!-- Snake Game -->
-        <a href="snake_game/index.html" class="card">
-            <div class="icon-box">🐍</div>
-            <h2>Neon Snake</h2>
-            <p>懐かしのスネークゲームをネオン調にリメイク。ハイスコアを目指して走り続けろ。</p>
-            <div class="card-arrow">Play Now <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <!-- Trivia Master -->
+        <a href="trivia-app/index.html" class="game-card">
+            <div class="icon-container">🧠</div>
+            <div class="game-title">Trivia Master</div>
+            <div class="game-desc">Quiz Time</div>
         </a>
 
-        <!-- Typing Game -->
-        <a href="typing_game/index.html" class="card">
-            <div class="icon-box">💻</div>
-            <h2>Matrix Typing</h2>
-            <p>マトリックス風の画面でプログラミング用語をタイピング。ハッカー気分を味わおう。</p>
-            <div class="card-arrow">Play Now <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <!-- 2048 -->
+        <a href="game-2048/index.html" class="game-card">
+            <div class="icon-container">🧩</div>
+            <div class="game-title">2048 Puzzle</div>
+            <div class="game-desc">Merge Numbers</div>
         </a>
 
-        <!-- Markdown Editor -->
-        <a href="md-editor/index.html" class="card">
-            <div class="icon-box">📝</div>
-            <h2>MD Editor</h2>
-            <p>エンジニアライクな黒背景のMarkdownエディタ。リアルタイムプレビュー機能搭載。</p>
-            <div class="card-arrow">Open Tool <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <!-- Neon Snake -->
+        <a href="snake_game/index.html" class="game-card">
+            <div class="icon-container">🐍</div>
+            <div class="game-title">Neon Snake</div>
+            <div class="game-desc">Classic Action</div>
+        </a>
+
+        <!-- Matrix Typing -->
+        <a href="typing_game/index.html" class="game-card">
+            <div class="icon-container">💻</div>
+            <div class="game-title">Matrix Typing</div>
+            <div class="game-desc">Hacker Style</div>
+        </a>
+
+        <!-- MD Editor -->
+        <a href="md-editor/index.html" class="game-card">
+            <div class="icon-container">📝</div>
+            <div class="game-title">MD Editor</div>
+            <div class="game-desc">Write Code</div>
         </a>
 
         <!-- Dashboard -->
-        <a href="my-tools/index.html" class="card">
-            <div class="icon-box">🛠️</div>
-            <h2>Dashboard</h2>
-            <p>ポモドーロタイマー、ToDoリスト、文字数カウンターを一つにまとめた生産性向上ツール。</p>
-            <div class="card-arrow">Open Tool <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                    stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg></div>
+        <a href="my-tools/index.html" class="game-card">
+            <div class="icon-container">🛠️</div>
+            <div class="game-title">Dashboard</div>
+            <div class="game-desc">Productivity</div>
         </a>
-    </main>
 
-    <!-- Retro Text RPG -->
-    <a href="mini-rpg/index.html" class="card">
-        <div class="icon-box">⚔️</div>
-        <h2>Retro RPG</h2>
-        <div style="flex-grow: 1;">
-            <p>1HTMLで完結するレトロなテキストRPG。モンスターを倒してレベルアップし、魔王を討伐せよ。</p>
-        </div>
-        <div class="card-arrow">Start Adventure <svg width="16" height="16" fill="none" viewBox="0 0 24 24"
-                stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg></div>
-    </a>
-    </main>
+    </div>
+
 </body>
 
 </html>
