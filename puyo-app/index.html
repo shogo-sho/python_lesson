@@ -412,24 +412,33 @@
             if (sy >= 0 && sy < ROWS) grid[sy][sx] = colors[1];
 
             render(true);
+            await sleep(100);
 
-            // Chain Reaction Loop
+            // === 1. Split & Drop Logic ===
+            // Immediately apply gravity to let floating pieces (from split) drop.
+            // This ensures they settle before we check for matches.
+            applyGravity();
+            render(true);
+            // If dropping happened, wait a bit
+            await sleep(200);
+
+            // === 2. Chain Reaction Loop ===
             while (true) {
                 const matches = findMatches();
                 if (matches.length === 0) break;
 
-                // 1. Highlight matches (add vanishing class via render)
+                // Highlight matches
                 render(true, matches);
-                await sleep(500); // Wait for transition
+                await sleep(500);
 
-                // 2. Remove matches
+                // Remove matches
                 for (const { r, c } of matches) {
                     grid[r][c] = null;
                 }
                 render(true);
                 await sleep(200);
 
-                // 3. Gravity
+                // Apply Gravity after clear
                 applyGravity();
                 render(true);
                 await sleep(300);
