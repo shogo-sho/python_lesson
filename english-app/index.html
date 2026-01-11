@@ -357,58 +357,61 @@
             controlsEl.classList.remove('visible');
 
             // Update progress
-            // Since we loop "Again" cards, simple x/15 isn't perfect, 
-            // but let's show Remaining count for clarity
             ui.progress.textContent = `Remaining: ${queue.length} cards`;
         }
 
         // Card Flip
-        sceneEl.addEventListener('click', () => {
-            if (!isFlipped) {
-                cardEl.classList.add('is-flipped');
-                isFlipped = true;
+        sceneEl.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return;
+
+            cardEl.classList.toggle('is-flipped');
+            isFlipped = cardEl.classList.contains('is-flipped');
+
+            if (isFlipped) {
                 setTimeout(() => {
                     controlsEl.classList.add('visible');
                 }, 200);
-            } else {
-                // Optional: Flip back? Usually Flashcards just stay flipped until Next
-                // cardEl.classList.remove('is-flipped');
-                // isFlipped = false;
             }
         });
 
         function clickNext() {
-            // Remove current from queue
             queue.shift();
             animateTransition();
         }
 
         function clickAgain() {
-            // Move current to end of queue
             const cardToMove = queue.shift();
             queue.push(cardToMove);
             animateTransition();
         }
 
         function animateTransition() {
-            // Slide out effect
+            // 1. Slide out
             cardEl.style.transform = "translateX(-120%) rotateY(180deg)";
             cardEl.style.opacity = "0";
 
             setTimeout(() => {
-                // Reset position invisible
+                // 2. Reset State
                 cardEl.style.transition = 'none';
-                cardEl.style.transform = "translateX(50px)";
                 cardEl.classList.remove('is-flipped');
+                isFlipped = false;
+
+                // Force Front Face
+                cardEl.style.transform = "translateX(50px) rotateY(0deg)";
 
                 updateCard();
 
-                // Allow browser to render reset
                 requestAnimationFrame(() => {
-                    // Slide in
+                    // 3. Slide In
                     cardEl.style.transition = "transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1), opacity 0.4s";
-                    cardEl.style.transform = "translateX(0)";
+                    cardEl.style.transform = "translateX(0) rotateY(0deg)";
                     cardEl.style.opacity = "1";
+
+                    // 4. Cleanup inline style to give control back to CSS class
+                    setTimeout(() => {
+                        cardEl.style.transform = "";
+                        cardEl.style.transition = "";
+                    }, 600);
                 });
             }, 300);
         }
