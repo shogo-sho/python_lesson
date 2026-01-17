@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DQ4 Inspector - Input Fixed</title>
+<style>
+  body { font-family: "Consolas", "Monaco", monospace; padding: 15px; background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); background-attachment: fixed; color: #e0e0e0; max-width: 800px; margin: 0 auto; min-height: 100vh; }
+  textarea, .hourly-box, .history-area, .total-area, #scanner-input { background: rgba(16, 20, 30, 0.7); backdrop-filter: blur(5px); border: 1px solid rgba(0, 255, 255, 0.2); color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+  label, .section-title { display: block; font-size: 13px; color: #00d2ff; margin-bottom: 5px; font-weight: bold; }
+  
+  textarea { 
+      width: 100%; 
+      height: 150px; /* さらに高く設定 */
+      padding: 12px; 
+      border-radius: 8px; 
+      font-family: inherit; 
+      font-size: 14px; 
+      box-sizing: border-box; 
+      resize: vertical; 
+      margin-bottom: 10px; 
+      line-height: 1.5;
+  }
+  
+  button { padding: 12px 16px; cursor: pointer; width: 100%; font-family: inherit; font-weight: bold; background: linear-gradient(90deg, #1cb5e0 0%, #000851 100%); color: #fff; border: none; border-radius: 4px; margin-bottom: 20px; }
+  #scanner-input { padding: 12px; font-size: 18px; width: 100%; box-sizing: border-box; border-radius: 8px; border: 2px solid rgba(0, 255, 255, 0.3); text-align: center; margin-bottom: 20px; }
+  .total-area { font-size: 18px; font-weight: bold; margin-bottom: 15px; padding: 15px; border-radius: 8px; border: 1px solid rgba(255, 0, 153, 0.3); display: flex; flex-direction: column; align-items: center; }
+  .spin-card { font-size: 56px; font-weight: bold; color: #ff0099; text-shadow: 0 0 15px rgba(255, 0, 153, 0.8); transition: transform 0.4s; display: inline-block; }
+  .spin-active { animation: horizontal-spin 0.4s ease-in-out; }
+  @keyframes horizontal-spin { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(90deg); } 100% { transform: rotateY(0deg); } }
+  .char-container { display: flex; align-items: center; background: rgba(0, 0, 0, 0.8); border: 1px solid rgba(255, 255, 255, 0.4); border-left: 8px solid #ffffff; border-radius: 8px; padding: 10px; margin-bottom: 15px; }
+  .char-icon { width: 100px; height: 100px; image-rendering: pixelated; object-fit: contain; }
+  .char-msg { margin-left: 12px; font-size: 13px; color: #fff; font-weight: bold; line-height: 1.4; }
+  .hourly-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
+  .hourly-box { border-radius: 6px; padding: 8px 5px; text-align: center; border: 1px solid rgba(0, 255, 255, 0.2); }
+  .active-hour { border-color: #00d2ff; box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); background: rgba(0, 210, 255, 0.1); }
+  .time-label { font-size: 10px; color: #aaa; display: block; margin-bottom: 2px; }
+  .count-val { font-size: 22px; font-weight: bold; color: #00d2ff; }
+  .history-area { padding: 10px; border-radius: 8px; min-height: 80px; max-height: 180px; overflow-y: auto; margin-bottom: 15px; }
+  .history-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 5px 0; font-size: 13px; display: flex; align-items: center; }
+  .barcode-link { color: #00d2ff; cursor: pointer; margin-left: 8px; text-decoration: underline; }
+  #toast { visibility: hidden; min-width: 180px; background: rgba(0, 0, 0, 0.9); color: #00d2ff; border: 1px solid #00d2ff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); font-size: 13px; }
+  #toast.show { visibility: visible; }
+</style>
+</head>
+<body onclick="handleBodyClick(event)">
+
+  <div class="char-container">
+    <img src="dq4_00001.png" id="char-icon" class="char-icon">
+    <div class="char-msg">
+      <span style="color:#aaa; font-size:10px;">SYSTEM STATUS</span><br>
+      <span id="char-status">...冒険の 準備が 整った！</span>
+    </div>
+  </div>
+
+  <div class="memo-area">
+    <label>さくせんメモ（クリックで編集可能）</label>
+    <textarea id="userMemo" placeholder="ここにメモを入力..."></textarea>
+  </div>
+  <button onclick="copyMemo(event)">メモの内容をすべてコピー</button>
+
+  <input type="text" id="scanner-input" placeholder="スキャンしてください" autofocus>
+
+  <div class="total-area">
+    <span>TOTAL EXP</span>
+    <div class="spin-card" id="totalCount">0</div>
+  </div>
+
+  <div class="hourly-container" id="hourlyWrapper"></div>
+
+  <div class="section-title">けんぴん履歴</div>
+  <div class="history-area" id="historyLog"></div>
+
+  <div id="toast">コピーしました！</div>
+
+<script>
+  let total = 0;
+  let scannedCodes = new Set();
+  const input = document.getElementById('scanner-input');
+  const charIcon = document.getElementById('char-icon');
+  const statusLabel = document.getElementById('char-status');
+  const totalDisplay = document.getElementById('totalCount');
+  const historyLog = document.getElementById('historyLog');
+  const userMemo = document.getElementById('userMemo');
+
+  const prefix = "dq4_"; 
+  const totalImages = 240; 
+
+  // ★重要：クリックされた場所が入力欄やメモ欄でない場合のみ、スキャン入力にフォーカスを戻す
+  function handleBodyClick(e) {
+    if (e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
+      input.focus();
+    }
+  }
+
+  function updateMonster(num) {
+    const idStr = String(num).padStart(5, '0');
+    charIcon.src = prefix + idStr + ".png";
+  }
+
+  input.addEventListener('change', function() {
+    const code = this.value.trim();
+    if (!code) return;
+    if (scannedCodes.has(code)) {
+        statusLabel.innerText = "それは すでに 検品済みだ！";
+        this.value = '';
+        return;
+    }
+
+    const randomNum = Math.floor(Math.random() * totalImages) + 1;
+    updateMonster(randomNum);
+    statusLabel.innerText = "スキャンせいこう！";
+
+    const now = new Date();
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `<span style="color:#666;">[${now.toLocaleTimeString()}]</span><span class="barcode-link" onclick="copyBarcode(event, this)">${code}</span>`;
+    historyLog.insertBefore(item, historyLog.firstChild);
+
+    scannedCodes.add(code);
+    total++;
+    totalDisplay.classList.remove('spin-active');
+    void totalDisplay.offsetWidth; 
+    totalDisplay.classList.add('spin-active');
+    setTimeout(() => { totalDisplay.innerText = total; }, 200);
+
+    const h = now.getHours();
+    const targetBox = document.getElementById(`count-${h}`);
+    if (targetBox) {
+        targetBox.innerText = parseInt(targetBox.innerText) + 1;
+        highlightCurrentHour(h);
+    }
+    this.value = '';
+    input.focus();
+  });
+
+  function highlightCurrentHour(h) {
+    document.querySelectorAll('.hourly-box').forEach(box => box.classList.remove('active-hour'));
+    const currentBox = document.querySelector(`.hourly-box[data-hour="${h}"]`);
+    if (currentBox) currentBox.classList.add('active-hour');
+  }
+
+  function init() {
+    const wrapper = document.getElementById('hourlyWrapper');
+    const currentH = new Date().getHours();
+    for (let h = 9; h < 18; h++) {
+      const box = document.createElement('div');
+      box.className = 'hourly-box' + (h === currentH ? ' active-hour' : '');
+      box.setAttribute('data-hour', h);
+      box.innerHTML = `<span class="time-label">${h}:00-${h+1}:00</span><span class="count-val" id="count-${h}">0</span>`;
+      wrapper.appendChild(box);
+    }
+    userMemo.value = localStorage.getItem('myWorkMemo') || '';
+  }
+
+  async function copyMemo(e) {
+    e.stopPropagation(); // 他のクリックイベントを止める
+    try {
+      await navigator.clipboard.writeText(userMemo.value);
+      showToast("メモをコピーしました");
+    } catch (err) {
+      userMemo.select();
+      document.execCommand('copy');
+      showToast("メモをコピーしました");
+    }
+    input.focus();
+  }
+
+  function copyBarcode(e, el) {
+    e.stopPropagation();
+    const val = el.innerText;
+    navigator.clipboard.writeText(val);
+    showToast("コピー: " + val);
+    input.focus();
+  }
+
+  function showToast(msg) {
+    const x = document.getElementById("toast");
+    x.innerText = msg; x.className = "show";
+    setTimeout(() => { x.className = ""; }, 2000);
+  }
+
+  userMemo.addEventListener('input', function() {
+    localStorage.setItem('myWorkMemo', this.value);
+  });
+
+  init();
+</script>
+</body>
+</html>
