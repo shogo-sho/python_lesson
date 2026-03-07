@@ -3,56 +3,96 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DQ11 Inspector - Final Stability Build</title>
+<title>DQ7 Inspector - Stone Tablet Edition</title>
 <style>
-  body { font-family: "Consolas", "Monaco", monospace; padding: 15px; background: linear-gradient(135deg, #0f0c29, #1a1a4a, #0a0a20); background-attachment: fixed; color: #e0e0e0; max-width: 800px; margin: 0 auto; min-height: 100vh; }
-  textarea, .hourly-box, .history-area, .total-area, #scanner-input { background: rgba(16, 20, 30, 0.8); backdrop-filter: blur(5px); border: 1px solid rgba(150, 100, 255, 0.3); color: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-  label, .section-title { display: block; font-size: 13px; color: #b388ff; margin-bottom: 5px; font-weight: bold; text-shadow: 0 0 5px rgba(179, 136, 255, 0.5); }
-  
-  textarea { width: 100%; height: 150px; padding: 12px; border-radius: 8px; font-family: inherit; font-size: 14px; box-sizing: border-box; resize: vertical; margin-bottom: 10px; line-height: 1.5; outline: none; }
-  textarea:focus { border-color: #b388ff; }
-  
-  button { padding: 12px 16px; cursor: pointer; width: 100%; font-family: inherit; font-weight: bold; background: linear-gradient(90deg, #7c4dff 0%, #311b92 100%); color: #fff; border: none; border-radius: 4px; margin-bottom: 20px; transition: 0.2s; }
-  button:active { transform: scale(0.98); }
+  body { 
+    font-family: "Consolas", "Monaco", monospace; padding: 15px; 
+    background: linear-gradient(135deg, #0f0c29, #24243e, #000000); 
+    background-attachment: fixed; color: #e0e0e0; 
+    max-width: 800px; margin: 0 auto; min-height: 100vh; 
+  }
 
-  #scanner-input { padding: 12px; font-size: 18px; width: 100%; box-sizing: border-box; border-radius: 8px; border: 2px solid rgba(179, 136, 255, 0.4); text-align: center; margin-bottom: 20px; outline: none; }
+  /* 実用的な半透明ウィンドウ */
+  textarea, .hourly-box, .history-area, .total-area, #scanner-input { 
+    background: rgba(16, 20, 30, 0.7); 
+    border: 1px solid rgba(0, 210, 255, 0.3); 
+    color: #fff; 
+  }
+
+  label, .section-title { 
+    display: block; font-size: 13px; color: #00d2ff; 
+    margin-bottom: 5px; font-weight: bold; 
+  }
+
+  /* メモ欄：高さを確保し、リサイズ可能に */
+  textarea { 
+    width: 100%; height: 150px; padding: 12px; 
+    border-radius: 8px; font-family: inherit; font-size: 14px; 
+    box-sizing: border-box; resize: vertical; margin-bottom: 10px; 
+    line-height: 1.5; outline: none;
+  }
   
-  .total-area { font-size: 18px; font-weight: bold; margin-bottom: 15px; padding: 15px; border-radius: 8px; border: 1px solid rgba(179, 136, 255, 0.3); display: flex; flex-direction: column; align-items: center; }
-  .spin-card { font-size: 56px; font-weight: bold; color: #ffeb3b; text-shadow: 0 0 15px rgba(255, 235, 59, 0.7); transition: transform 0.4s; display: inline-block; }
+  button { 
+    padding: 12px 16px; cursor: pointer; width: 100%; 
+    font-family: inherit; font-weight: bold; 
+    background: linear-gradient(90deg, #1cb5e0 0%, #000851 100%); 
+    color: #fff; border: none; border-radius: 4px; margin-bottom: 20px; 
+  }
+
+  #scanner-input { 
+    padding: 12px; font-size: 18px; width: 100%; box-sizing: border-box; 
+    border-radius: 8px; border: 2px solid rgba(0, 210, 255, 0.4); 
+    text-align: center; margin-bottom: 20px; outline: none;
+  }
+
+  .total-area { 
+    font-size: 18px; font-weight: bold; margin-bottom: 15px; padding: 15px; 
+    border-radius: 8px; border: 1px solid rgba(255, 0, 153, 0.3); 
+    display: flex; flex-direction: column; align-items: center; 
+  }
+  .spin-card { 
+    font-size: 56px; font-weight: bold; color: #ffd700; /* DQ7イメージのゴールド */
+    text-shadow: 0 0 15px rgba(255, 215, 0, 0.6); 
+    transition: transform 0.4s; display: inline-block; 
+  }
   .spin-active { animation: horizontal-spin 0.4s ease-in-out; }
   @keyframes horizontal-spin { 0% { transform: rotateY(0deg); } 50% { transform: rotateY(90deg); } 100% { transform: rotateY(0deg); } }
-  
-  .char-container { display: flex; align-items: center; background: rgba(0, 0, 0, 0.8); border: 1px solid rgba(255, 255, 255, 0.4); border-left: 8px solid #7c4dff; border-radius: 8px; padding: 10px; margin-bottom: 15px; }
+
+  .char-container { 
+    display: flex; align-items: center; background: rgba(0, 0, 0, 0.8); 
+    border: 1px solid rgba(255, 255, 255, 0.4); border-left: 8px solid #00d2ff; 
+    border-radius: 8px; padding: 10px; margin-bottom: 15px; 
+  }
   .char-icon { width: 100px; height: 100px; image-rendering: pixelated; object-fit: contain; }
   .char-msg { margin-left: 12px; font-size: 13px; color: #fff; font-weight: bold; line-height: 1.4; }
-  
+
   .hourly-container { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px; }
-  .hourly-box { border-radius: 6px; padding: 8px 5px; text-align: center; border: 1px solid rgba(179, 136, 255, 0.2); }
-  .active-hour { border-color: #b388ff; box-shadow: 0 0 10px rgba(179, 136, 255, 0.3); background: rgba(179, 136, 255, 0.1); }
+  .hourly-box { border-radius: 6px; padding: 8px 5px; text-align: center; border: 1px solid rgba(0, 210, 255, 0.2); }
+  .active-hour { border-color: #00d2ff; box-shadow: 0 0 10px rgba(0, 210, 255, 0.3); background: rgba(0, 210, 255, 0.1); }
   .time-label { font-size: 10px; color: #aaa; display: block; margin-bottom: 2px; }
-  .count-val { font-size: 22px; font-weight: bold; color: #b388ff; }
-  
+  .count-val { font-size: 22px; font-weight: bold; color: #00d2ff; }
+
   .history-area { padding: 10px; border-radius: 8px; min-height: 80px; max-height: 180px; overflow-y: auto; margin-bottom: 15px; }
   .history-item { border-bottom: 1px solid rgba(255,255,255,0.1); padding: 5px 0; font-size: 13px; display: flex; align-items: center; }
-  .barcode-link { color: #b388ff; cursor: pointer; margin-left: 8px; text-decoration: underline; }
-  
-  #toast { visibility: hidden; min-width: 180px; background: rgba(0, 0, 0, 0.9); color: #b388ff; border: 1px solid #b388ff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); font-size: 13px; }
+  .barcode-link { color: #00d2ff; cursor: pointer; margin-left: 8px; text-decoration: underline; }
+
+  #toast { visibility: hidden; min-width: 180px; background: rgba(0, 0, 0, 0.9); color: #00d2ff; border: 1px solid #00d2ff; text-align: center; border-radius: 4px; padding: 10px; position: fixed; z-index: 100; left: 50%; bottom: 20px; transform: translateX(-50%); font-size: 13px; }
   #toast.show { visibility: visible; }
 </style>
 </head>
 <body onmousedown="handleGlobalMouseDown(event)">
 
   <div class="char-container">
-    <img src="dq11_00001.png" id="char-icon" class="char-icon" onerror="this.src='dq11_00001.png'">
+    <img src="dq7_00001.png" id="char-icon" class="char-icon" onerror="this.src='dq7_00001.png'">
     <div class="char-msg">
       <span style="color:#aaa; font-size:10px;">SYSTEM STATUS</span><br>
-      <span id="char-status">...過ぎ去りし時を求めて！</span>
+      <span id="char-status">...エデンの戦士たちよ ようこそ！</span>
     </div>
   </div>
 
   <div class="memo-area">
     <label>さくせんメモ（自動保存）</label>
-    <textarea id="userMemo" placeholder="ここにメモを入力..."></textarea>
+    <textarea id="userMemo" placeholder="旅の記録をここに..."></textarea>
   </div>
   <button onclick="copyMemo(event)">メモをすべてコピー</button>
 
@@ -65,7 +105,7 @@
 
   <div class="hourly-container" id="hourlyWrapper"></div>
 
-  <div class="section-title">けんぴん履歴</div>
+  <div class="section-title">検品履歴</div>
   <div class="history-area" id="historyLog"></div>
 
   <div id="toast">コピーしました！</div>
@@ -80,10 +120,11 @@
   const historyLog = document.getElementById('historyLog');
   const userMemo = document.getElementById('userMemo');
 
-  // ★ dq11_ に設定。画像枚数は実際の数に合わせて変更してください
-  const prefix = "dq11_"; 
-  const totalImages = 472; 
+  // ★ dq7仕様
+  const prefix = "dq7_"; 
+  const totalImages = 355; 
 
+  // メモ欄入力を邪魔せずフォーカスを管理
   function handleGlobalMouseDown(e) {
     if (e.target !== userMemo && e.target.tagName !== 'INPUT' && e.target.tagName !== 'BUTTON') {
       setTimeout(() => input.focus(), 10);
@@ -154,11 +195,11 @@
     e.preventDefault();
     try {
       await navigator.clipboard.writeText(userMemo.value);
-      showToast("メモをコピーしました");
+      showToast("コピーしました");
     } catch (err) {
       userMemo.select();
       document.execCommand('copy');
-      showToast("メモをコピーしました");
+      showToast("コピーしました");
     }
     input.focus();
   }

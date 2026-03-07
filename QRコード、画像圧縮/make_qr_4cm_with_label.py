@@ -18,7 +18,7 @@ from qrcode.constants import ERROR_CORRECT_H
 from PIL import Image
 
 # ===== 設定 =====
-CSV_FILE = "/Users/shogo/Documents/python_lesson/QRコード、画像圧縮/引越しQRコード作成用.csv"
+CSV_FILE = "/Users/shogo/Documents/python_lesson/Googleフォト同期/album_urls.csv"
 OUT_DIR = "/Users/shogo/画像/QRコード"
 DPI = 300
 QR_SIZE_CM = 4.0

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>DQ6 Chip Cutter - Realms of Revelation</title>
+    <style>
+        body { background: #1a052e; color: #fff; font-family: sans-serif; text-align: center; }
+        canvas { border: 2px solid #fff; cursor: crosshair; image-rendering: pixelated; max-width: 100%; }
+        .controls { background: rgba(0,0,0,0.8); padding: 20px; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #d4af37; }
+        .preview { border: 1px solid #d4af37; margin: 10px; width: 96px; height: 96px; object-fit: contain; image-rendering: pixelated; }
+        button { background: #4b0082; color: white; border: 2px solid #fff; padding: 10px 20px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #6a0dad; }
+    </style>
+</head>
+<body>
+
+<div class="controls">
+    <h2>DQ6 マップチップ切り出し器</h2>
+    <input type="file" id="upload" accept="image/*">
+    <p>マウスでドラッグして囲む ➔ 保存ボタン</p>
+    <img id="preview" class="preview">
+    <br>
+    <input type="text" id="filename" placeholder="dq6_castle_01"> .png
+    <button onclick="saveImage()">この範囲を保存する</button>
+</div>
+
+<canvas id="canvas"></canvas>
+
+<script>
+    const upload = document.getElementById('upload');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const preview = document.getElementById('preview');
+    const filenameInput = document.getElementById('filename');
+
+    let img = new Image();
+    let startX, startY, isDragging = false;
+    let cropArea = { x: 0, y: 0, w: 0, h: 0 };
+
+    upload.onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            img.onload = () => {
+                canvas.width = img.width;
+                canvas.height = img.height;
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    };
+
+    canvas.onmousedown = (e) => {
+        startX = e.offsetX;
+        startY = e.offsetY;
+        isDragging = true;
+    };
+
+    canvas.onmousemove = (e) => {
+        if (!isDragging) return;
+        const x = e.offsetX;
+        const y = e.offsetY;
+        cropArea = { x: Math.min(x, startX), y: Math.min(y, startY), w: Math.abs(x - startX), h: Math.abs(y - startY) };
+        
+        // プレビュー更新
+        updatePreview();
+        
+        // ガイド表示
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0);
+        ctx.strokeStyle = '#d4af37';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(cropArea.x, cropArea.y, cropArea.w, cropArea.h);
+    };
+
+    canvas.onmouseup = () => { isDragging = false; };
+
+    function updatePreview() {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = cropArea.w;
+        tempCanvas.height = cropArea.h;
+        const tCtx = tempCanvas.getContext('2d');
+        tCtx.drawImage(img, cropArea.x, cropArea.y, cropArea.w, cropArea.h, 0, 0, cropArea.w, cropArea.h);
+        preview.src = tempCanvas.toDataURL();
+    }
+
+    function saveImage() {
+        const link = document.createElement('a');
+        link.download = (filenameInput.value || 'dq6_chip') + '.png';
+        link.href = preview.src;
+        link.click();
+    }
+</script>
+</body>
+</html>
