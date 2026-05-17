@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2D → レイヤービューア</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #1a1a2e;
+  color: #e0e0f0;
+  font-family: 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px;
+  gap: 18px;
+}
+
+h1 { font-size: 1.3rem; letter-spacing: .06em; color: #a0c4ff; }
+
+/* Drop Zone */
+#dropzone {
+  width: 100%; max-width: 600px;
+  border: 2px dashed #4a6fa5; border-radius: 12px;
+  padding: 28px; text-align: center; cursor: pointer;
+  transition: border-color .2s, background .2s; color: #8090b0;
+}
+#dropzone.drag-over { border-color: #a0c4ff; background: #1e2d50; }
+#dropzone .icon { display: block; font-size: 2rem; margin-bottom: 6px; }
+
+/* Settings */
+#settings {
+  display: flex; flex-wrap: wrap; gap: 14px;
+  justify-content: center; width: 100%; max-width: 720px;
+}
+.sg { display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+label { font-size: .76rem; color: #8090b0; letter-spacing: .05em; }
+input[type=range] { width: 100%; accent-color: #a0c4ff; }
+select {
+  background: #16213e; border: 1px solid #4a6fa5; border-radius: 6px;
+  color: #e0e0f0; padding: 4px 8px; font-size: .9rem;
+}
+.val { font-size: .84rem; color: #a0c4ff; font-weight: 600; text-align: right; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 8px; align-items: flex-end; }
+button {
+  background: #2a4a8a; border: none; border-radius: 8px;
+  color: #e0e0f0; padding: 8px 16px; font-size: .88rem;
+  cursor: pointer; transition: background .15s;
+}
+button:hover  { background: #3a6aaa; }
+button:disabled { opacity: .35; cursor: not-allowed; }
+#playBtn { background: #1a6a3a; }
+#playBtn:hover { background: #2a8a4a; }
+#playBtn.playing { background: #7a2a2a; }
+#playBtn.playing:hover { background: #9a3a3a; }
+
+/* Viewer */
+#viewer { display: none; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+
+#canvasWrap {
+  position: relative; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 4px 28px #000a; background: #0a0a12;
+  max-width: min(100%, 640px);
+}
+#bgCanvas, #layerCanvas { display: block; width: 100%; height: auto; }
+#layerCanvas { position: absolute; top: 0; left: 0; }
+
+/* Slider row */
+#sliderRow {
+  width: 100%; max-width: 680px;
+  display: flex; align-items: center; gap: 12px;
+}
+#sliderRow .lbl { min-width: 100px; font-size: .88rem; color: #a0c4ff; font-weight: 600; }
+#layerSlider { flex: 1; accent-color: #a0c4ff; }
+
+/* Bar graph — shows sphere distribution */
+#graphWrap { width: 100%; max-width: 680px; }
+#graphTitle { font-size: .74rem; color: #6080a0; margin-bottom: 4px; }
+#graph {
+  display: flex; align-items: flex-end; gap: 2px;
+  height: 56px; padding: 2px 0;
+}
+.bar { flex: 1; border-radius: 2px 2px 0 0; background: #2a5a9a; transition: background .1s; min-width: 2px; }
+.bar.active { background: #a0c4ff; }
+
+/* Info */
+#info { font-size: .83rem; color: #7090b0; text-align: center; line-height: 1.7; }
+#info strong { color: #c0d8ff; }
+
+/* Speed control (shown when playing) */
+#speedRow { display: flex; align-items: center; gap: 10px; font-size: .82rem; color: #8090b0; }
+#speedRow input { width: 100px; accent-color: #a0c4ff; }
+</style>
+</head>
+<body>
+
+<h1>🧱 2D → レイヤービューア</h1>
+
+<div id="dropzone">
+  <span class="icon">🖼️</span>
+  画像をドロップ、またはクリックして選択
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
+</div>
+
+<div id="settings">
+  <div class="sg">
+    <label>ブロックサイズ</label>
+    <input type="range" id="blockSize" min="4" max="64" value="16" step="2">
+    <div class="val"><span id="blockSizeVal">16</span> px</div>
+  </div>
+  <div class="sg">
+    <label>レイヤー数</label>
+    <input type="range" id="numLayers" min="4" max="32" value="12" step="1">
+    <div class="val"><span id="numLayersVal">12</span></div>
+  </div>
+  <div class="sg">
+    <label>分布の形状</label>
+    <select id="shape">
+      <option value="sphere">Sphere（球体）</option>
+      <option value="lens">Lens（レンズ形）</option>
+      <option value="gauss">Gauss（なだらか）</option>
+    </select>
+  </div>
+  <div class="sg">
+    <label>背景の透明度</label>
+    <input type="range" id="bgOpacity" min="0" max="40" value="12" step="1">
+    <div class="val"><span id="bgOpacityVal">12</span> %</div>
+  </div>
+  <div class="btn-row">
+    <button id="buildBtn" disabled>▶ 変換</button>
+    <button id="playBtn"  disabled>⏵ 再生</button>
+  </div>
+</div>
+
+<div id="viewer">
+  <div id="canvasWrap">
+    <canvas id="bgCanvas"></canvas>
+    <canvas id="layerCanvas"></canvas>
+  </div>
+
+  <div id="sliderRow">
+    <span class="lbl" id="layerLabel">Layer 1 / 12</span>
+    <input type="range" id="layerSlider" min="0" max="11" value="0">
+  </div>
+
+  <div id="graphWrap">
+    <div id="graphTitle">各レイヤーのブロック数（前後が少なく、中央が多い）</div>
+    <div id="graph"></div>
+  </div>
+
+  <div id="speedRow">
+    再生速度 <input type="range" id="speed" min="50" max="600" value="150" step="25"> <span id="speedVal">150</span>ms
+  </div>
+
+  <div id="info">画像を読み込んで「変換」を押してください</div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────
+let srcImage = null;
+let layerBlocks = [];   // [layerIdx] → [{col, row, r, g, b, a}]
+let totalBlocks = 0;
+let numLayers = 12;
+let blockSize = 16;
+let canvasW = 0, canvasH = 0;
+let currentLayer = 0;
+let playTimer = null;
+
+// Elements
+const dropzone    = document.getElementById('dropzone');
+const fileInput   = document.getElementById('fileInput');
+const buildBtn    = document.getElementById('buildBtn');
+const playBtn     = document.getElementById('playBtn');
+const viewer      = document.getElementById('viewer');
+const bgCanvas    = document.getElementById('bgCanvas');
+const layerCanvas = document.getElementById('layerCanvas');
+const bgCtx       = bgCanvas.getContext('2d');
+const layerCtx    = layerCanvas.getContext('2d');
+const layerSlider = document.getElementById('layerSlider');
+const layerLabel  = document.getElementById('layerLabel');
+const graph       = document.getElementById('graph');
+const info        = document.getElementById('info');
+const speedEl     = document.getElementById('speed');
+const speedVal    = document.getElementById('speedVal');
+
+// ── Live value labels ───────────────────────────────────────────────
+['blockSize','numLayers','bgOpacity'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    document.getElementById(id + 'Val').textContent = document.getElementById(id).value;
+  });
+});
+speedEl.addEventListener('input', () => { speedVal.textContent = speedEl.value; });
+
+// ── Drop / File ────────────────────────────────────────────────────
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover',  e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => { e.preventDefault(); dropzone.classList.remove('drag-over'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    srcImage = img;
+    buildBtn.disabled = false;
+    dropzone.querySelector('.icon').textContent = '✅';
+    dropzone.childNodes[2].textContent = ` ${file.name}  (${img.width} × ${img.height})`;
+  };
+  img.src = url;
+}
+
+// ── Seeded RNG (LCG) ───────────────────────────────────────────────
+let seed = 0;
+function rand() {
+  seed = (Math.imul(1664525, seed) + 1013904223) | 0;
+  return (seed >>> 0) / 4294967296;
+}
+
+// ── Build ──────────────────────────────────────────────────────────
+buildBtn.addEventListener('click', build);
+
+function build() {
+  if (!srcImage) return;
+  seed = 42;
+  blockSize = +document.getElementById('blockSize').value;
+  numLayers = +document.getElementById('numLayers').value;
+  const shape = document.getElementById('shape').value;
+
+  // Off-screen canvas to sample pixel colors
+  const oc = document.createElement('canvas');
+  oc.width = srcImage.width; oc.height = srcImage.height;
+  const octx = oc.getContext('2d');
+  octx.drawImage(srcImage, 0, 0);
+  const imgData = octx.getImageData(0, 0, oc.width, oc.height);
+
+  canvasW = oc.width; canvasH = oc.height;
+  const cx = canvasW / 2, cy = canvasH / 2;
+  // Normalize distance using the half-diagonal so all blocks are included
+  const maxDist = Math.sqrt(cx * cx + cy * cy);
+
+  const cols = Math.ceil(canvasW / blockSize);
+  const rows = Math.ceil(canvasH / blockSize);
+
+  // Pre-compute layer weights (sphere cross-section formula)
+  // Layer i is at z_i in [-1, +1]; weight = cross-section area ∝ 1 - z²
+  const weights = [];
+  for (let i = 0; i < numLayers; i++) {
+    const z = 2 * i / (numLayers - 1) - 1;  // -1 to +1
+    let w;
+    if (shape === 'sphere') {
+      w = Math.max(0, 1 - z * z);          // parabola → sphere cross-section
+    } else if (shape === 'lens') {
+      w = Math.max(0, 1 - Math.abs(z));    // tent → shallower front/back
+    } else {
+      // Gauss
+      w = Math.exp(-4 * z * z);            // Gaussian
+    }
+    weights.push(w);
+  }
+  // Build cumulative weights for sampling
+  const cumW = [];
+  let sum = 0;
+  for (const w of weights) { sum += w; cumW.push(sum); }
+
+  layerBlocks = Array.from({length: numLayers}, () => []);
+  totalBlocks = 0;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const bx = col * blockSize + blockSize / 2;
+      const by = row * blockSize + blockSize / 2;
+
+      // Normalized distance from center (0 = center, 1 = farthest corner)
+      const dx = (bx - cx) / maxDist;
+      const dy = (by - cy) / maxDist;
+      const r = Math.sqrt(dx * dx + dy * dy);  // 0..1
+
+      // z_max for this block: blocks closer to center have wider z range
+      // → they can be assigned to any layer (including tips)
+      // → blocks at corners (r≈1) can only go near z=0 (middle layers)
+      const zMax = Math.sqrt(Math.max(0, 1 - r * r));
+
+      // Sample z uniformly in [-zMax, +zMax], then pick the layer
+      const z = (rand() * 2 - 1) * zMax;
+
+      // Map z ∈ [-1, 1] → layer index
+      const layerIdx = Math.min(numLayers - 1,
+        Math.max(0, Math.floor((z + 1) / 2 * numLayers)));
+
+      // Average color of this block from the source image
+      const [r2, g2, b2, a2] = sampleBlock(imgData, canvasW, canvasH,
+        col * blockSize, row * blockSize, blockSize);
+
+      // Skip fully transparent blocks
+      if (a2 < 4) continue;
+
+      layerBlocks[layerIdx].push({ col, row, r: r2, g: g2, b: b2, a: a2 });
+      totalBlocks++;
+    }
+  }
+
+  // Setup canvases (display at most 640px wide)
+  bgCanvas.width    = canvasW; bgCanvas.height    = canvasH;
+  layerCanvas.width = canvasW; layerCanvas.height = canvasH;
+
+  buildGraph();
+
+  currentLayer = 0;
+  layerSlider.min = 0; layerSlider.max = numLayers - 1; layerSlider.value = 0;
+  viewer.style.display = 'flex';
+  playBtn.disabled = false;
+  renderLayer(0);
+}
+
+function sampleBlock(imgData, W, H, x0, y0, bs) {
+  let r = 0, g = 0, b = 0, a = 0, n = 0;
+  for (let dy = 0; dy < bs && y0 + dy < H; dy++) {
+    for (let dx = 0; dx < bs && x0 + dx < W; dx++) {
+      const i = ((y0 + dy) * W + (x0 + dx)) * 4;
+      r += imgData.data[i];
+      g += imgData.data[i + 1];
+      b += imgData.data[i + 2];
+      a += imgData.data[i + 3];
+      n++;
+    }
+  }
+  return n ? [r/n, g/n, b/n, a/n] : [0,0,0,0];
+}
+
+// ── Render ─────────────────────────────────────────────────────────
+function renderLayer(idx) {
+  currentLayer = idx;
+  layerLabel.textContent = `Layer ${idx + 1} / ${numLayers}`;
+  layerSlider.value = idx;
+
+  // Background (faded original image)
+  const opacity = +document.getElementById('bgOpacity').value / 100;
+  bgCtx.clearRect(0, 0, canvasW, canvasH);
+  if (opacity > 0) {
+    bgCtx.globalAlpha = opacity;
+    bgCtx.drawImage(srcImage, 0, 0);
+    bgCtx.globalAlpha = 1;
+  }
+
+  // Layer blocks
+  layerCtx.clearRect(0, 0, canvasW, canvasH);
+  const lb = layerBlocks[idx];
+  for (const b of lb) {
+    const x = b.col * blockSize, y = b.row * blockSize;
+    layerCtx.fillStyle = `rgba(${b.r|0},${b.g|0},${b.b|0},${(b.a/255).toFixed(3)})`;
+    layerCtx.fillRect(x, y, blockSize, blockSize);
+    // Subtle block border
+    if (blockSize >= 8) {
+      layerCtx.strokeStyle = 'rgba(255,255,255,0.07)';
+      layerCtx.lineWidth = 0.5;
+      layerCtx.strokeRect(x + .5, y + .5, blockSize - 1, blockSize - 1);
+    }
+  }
+
+  // Update bar graph highlight
+  document.querySelectorAll('#graph .bar').forEach((bar, i) =>
+    bar.classList.toggle('active', i === idx));
+
+  const pct = totalBlocks ? (lb.length / totalBlocks * 100).toFixed(1) : 0;
+  info.innerHTML =
+    `現在: <strong>Layer ${idx + 1}</strong> / ${numLayers}　` +
+    `このレイヤーのブロック数: <strong>${lb.length}</strong>　` +
+    `全体の <strong>${pct}%</strong>`;
+}
+
+function buildGraph() {
+  graph.innerHTML = '';
+  const maxCount = Math.max(...layerBlocks.map(l => l.length), 1);
+  layerBlocks.forEach((lb, i) => {
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.height = Math.max(2, lb.length / maxCount * 100) + '%';
+    bar.title = `Layer ${i + 1}: ${lb.length} blocks`;
+    graph.appendChild(bar);
+  });
+}
+
+// ── Slider ─────────────────────────────────────────────────────────
+layerSlider.addEventListener('input', () => renderLayer(+layerSlider.value));
+document.getElementById('bgOpacity').addEventListener('input', () => {
+  if (layerBlocks.length) renderLayer(currentLayer);
+});
+
+// ── Playback ───────────────────────────────────────────────────────
+playBtn.addEventListener('click', () => {
+  if (playTimer) {
+    clearInterval(playTimer);
+    playTimer = null;
+    playBtn.textContent = '⏵ 再生';
+    playBtn.classList.remove('playing');
+  } else {
+    playBtn.textContent = '⏸ 停止';
+    playBtn.classList.add('playing');
+    playTimer = setInterval(() => {
+      renderLayer((currentLayer + 1) % numLayers);
+    }, +speedEl.value);
+  }
+});
+speedEl.addEventListener('input', () => {
+  if (playTimer) {
+    clearInterval(playTimer);
+    playTimer = setInterval(() => {
+      renderLayer((currentLayer + 1) % numLayers);
+    }, +speedEl.value);
+  }
+});
+</script>
+</body>
+</html>
