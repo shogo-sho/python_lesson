@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英単語問題集 〜中学・高校レベル〜</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    color: #e0e0e0;
+  }
+  h1 {
+    font-size: 1.8rem;
+    margin-bottom: 6px;
+    color: #7ec8e3;
+    text-align: center;
+    letter-spacing: 2px;
+  }
+  .subtitle { color: #aaa; font-size: 0.85rem; margin-bottom: 24px; text-align: center; }
+
+  /* === START SCREEN === */
+  #startScreen {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 520px;
+    text-align: center;
+  }
+  #startScreen h2 { font-size: 1.2rem; margin-bottom: 20px; color: #c9d6df; }
+  .option-group { margin-bottom: 20px; text-align: left; }
+  .option-group label { display: block; margin-bottom: 8px; color: #aaa; font-size: 0.85rem; }
+  .radio-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .radio-btn {
+    flex: 1; min-width: 120px;
+    padding: 10px 14px;
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: #c9d6df;
+    background: rgba(255,255,255,0.04);
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .radio-btn.selected {
+    border-color: #7ec8e3;
+    background: rgba(126,200,227,0.12);
+    color: #7ec8e3;
+  }
+  .radio-btn:hover { border-color: #7ec8e3; }
+  input[type=radio] { display: none; }
+  .count-slider { width: 100%; accent-color: #7ec8e3; }
+  .count-val { color: #7ec8e3; font-weight: bold; font-size: 1.1rem; }
+  .start-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #7ec8e3, #0d84a8);
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+    letter-spacing: 1px;
+  }
+  .start-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  /* === QUIZ SCREEN === */
+  #quizScreen { display: none; width: 100%; max-width: 600px; }
+  .progress-bar-wrap {
+    background: rgba(255,255,255,0.1);
+    border-radius: 20px;
+    height: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .progress-bar { height: 100%; background: #7ec8e3; border-radius: 20px; transition: width 0.4s; }
+  .progress-text { text-align: right; font-size: 0.82rem; color: #aaa; margin-bottom: 20px; }
+
+  .card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 28px 28px 22px;
+    margin-bottom: 16px;
+  }
+  .mode-badge {
+    display: inline-block;
+    font-size: 0.75rem;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+    font-weight: bold;
+    letter-spacing: 1px;
+  }
+  .badge-en { background: rgba(126,200,227,0.2); color: #7ec8e3; border: 1px solid #7ec8e3; }
+  .badge-jp { background: rgba(255,180,100,0.2); color: #ffb464; border: 1px solid #ffb464; }
+
+  .question-word {
+    font-size: 2.4rem;
+    font-weight: bold;
+    text-align: center;
+    margin: 10px 0 18px;
+    color: #ffffff;
+    letter-spacing: 2px;
+    line-height: 1.2;
+  }
+  .question-note { text-align: center; font-size: 0.82rem; color: #888; margin-bottom: 10px; }
+
+  .hint-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .hint-btn {
+    flex: 1; min-width: 100px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.04);
+    color: #c9d6df;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .hint-btn:hover { background: rgba(255,255,255,0.1); }
+  .hint-btn:disabled { opacity: 0.4; cursor: default; }
+  .hint-btn.used { border-color: #f0a500; color: #f0a500; background: rgba(240,165,0,0.1); }
+
+  .hint-display {
+    background: rgba(240,165,0,0.08);
+    border: 1px solid rgba(240,165,0,0.3);
+    border-radius: 10px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 0.9rem;
+    color: #f0c060;
+    min-height: 36px;
+    line-height: 1.5;
+  }
+  .hint-display:empty { display: none; }
+
+  .answer-input {
+    width: 100%;
+    padding: 13px 16px;
+    border-radius: 10px;
+    border: 2px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.07);
+    color: #fff;
+    font-size: 1.1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .answer-input:focus { border-color: #7ec8e3; }
+  .answer-input.correct { border-color: #4caf50; background: rgba(76,175,80,0.1); }
+  .answer-input.incorrect { border-color: #f44336; background: rgba(244,67,54,0.1); }
+
+  .action-row { display: flex; gap: 10px; margin-top: 14px; }
+  .submit-btn, .next-btn, .skip-btn {
+    flex: 1; padding: 12px; border: none; border-radius: 10px;
+    font-size: 1rem; font-weight: bold; cursor: pointer; transition: all 0.2s;
+  }
+  .submit-btn { background: linear-gradient(135deg, #7ec8e3, #0d84a8); color: #fff; }
+  .submit-btn:hover { opacity: 0.9; }
+  .next-btn { background: linear-gradient(135deg, #4caf50, #2e7d32); color: #fff; display: none; }
+  .skip-btn { background: rgba(255,255,255,0.08); color: #aaa; border: 1px solid rgba(255,255,255,0.15); flex: 0 0 auto; padding: 12px 18px; }
+  .skip-btn:hover { background: rgba(255,255,255,0.15); }
+
+  .feedback {
+    margin-top: 14px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    display: none;
+    line-height: 1.5;
+  }
+  .feedback.correct { background: rgba(76,175,80,0.15); border: 1px solid #4caf50; color: #a5d6a7; }
+  .feedback.incorrect { background: rgba(244,67,54,0.15); border: 1px solid #f44336; color: #ef9a9a; }
+
+  /* score bar */
+  .score-bar {
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+    padding: 12px 18px;
+    margin-bottom: 16px;
+  }
+  .score-item { font-size: 0.85rem; color: #aaa; }
+  .score-item span { color: #fff; font-weight: bold; font-size: 1rem; }
+  .score-item.correct-c span { color: #4caf50; }
+  .score-item.incorrect-c span { color: #f44336; }
+  .score-item.hint-c span { color: #f0a500; }
+  .sep { color: #444; }
+
+  /* === RESULT SCREEN === */
+  #resultScreen {
+    display: none; width: 100%; max-width: 520px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+  .result-title { font-size: 1.5rem; font-weight: bold; margin-bottom: 6px; color: #7ec8e3; }
+  .result-score { font-size: 3rem; font-weight: bold; margin: 16px 0 4px; color: #fff; }
+  .result-sub { color: #aaa; font-size: 0.9rem; margin-bottom: 24px; }
+  .result-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .result-box {
+    padding: 14px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .result-box .num { font-size: 1.6rem; font-weight: bold; }
+  .result-box .lbl { font-size: 0.75rem; color: #aaa; margin-top: 4px; }
+  .result-box.c .num { color: #4caf50; }
+  .result-box.w .num { color: #f44336; }
+  .result-box.h .num { color: #f0a500; }
+  .mistake-section { text-align: left; margin-bottom: 20px; }
+  .mistake-section h3 { font-size: 0.9rem; color: #aaa; margin-bottom: 10px; }
+  .mistake-item {
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(244,67,54,0.08);
+    border: 1px solid rgba(244,67,54,0.25);
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    color: #ef9a9a;
+  }
+  .mistake-item .en { color: #fff; font-weight: bold; }
+  .retry-btn {
+    width: 100%; padding: 14px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, #7ec8e3, #0d84a8);
+    color: #fff; font-size: 1rem; font-weight: bold; cursor: pointer;
+    transition: opacity 0.2s; margin-bottom: 10px;
+  }
+  .retry-btn:hover { opacity: 0.9; }
+  .home-btn {
+    width: 100%; padding: 12px; border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 12px; background: rgba(255,255,255,0.05);
+    color: #c9d6df; font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
+  }
+  .home-btn:hover { background: rgba(255,255,255,0.1); }
+</style>
+</head>
+<body>
+
+<h1>📖 英単語問題集</h1>
+<p class="subtitle">中学・高校レベル｜全250語収録</p>
+
+<!-- START SCREEN -->
+<div id="startScreen">
+  <h2>クイズの設定</h2>
+
+  <div class="option-group">
+    <label>出題モード</label>
+    <div class="radio-row">
+      <div class="radio-btn selected" data-group="mode" data-val="en2jp">英語 → 日本語</div>
+      <div class="radio-btn" data-group="mode" data-val="jp2en">日本語 → 英語</div>
+      <div class="radio-btn" data-group="mode" data-val="mix">ミックス</div>
+    </div>
+  </div>
+
+  <div class="option-group">
+    <label>レベル</label>
+    <div class="radio-row">
+      <div class="radio-btn selected" data-group="level" data-val="all">全レベル</div>
+      <div class="radio-btn" data-group="level" data-val="junior">中学</div>
+      <div class="radio-btn" data-group="level" data-val="senior">高校</div>
+    </div>
+  </div>
+
+  <div class="option-group">
+    <label>出題数：<span class="count-val" id="countVal">20</span> 問</label>
+    <input type="range" class="count-slider" id="countSlider" min="5" max="50" value="20" step="5">
+  </div>
+
+  <button class="start-btn" id="startBtn">スタート！</button>
+</div>
+
+<!-- QUIZ SCREEN -->
+<div id="quizScreen">
+  <div class="score-bar">
+    <div class="score-item correct-c">正解 <span id="correctCount">0</span></div>
+    <span class="sep">|</span>
+    <div class="score-item incorrect-c">不正解 <span id="incorrectCount">0</span></div>
+    <span class="sep">|</span>
+    <div class="score-item hint-c">ヒント使用 <span id="hintCount">0</span></div>
+  </div>
+
+  <div class="progress-bar-wrap">
+    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+  </div>
+  <div class="progress-text" id="progressText">1 / 20</div>
+
+  <div class="card">
+    <span class="mode-badge" id="modeBadge"></span>
+    <div class="question-word" id="questionWord"></div>
+    <div class="question-note" id="questionNote"></div>
+
+    <div class="hint-row">
+      <button class="hint-btn" id="hintPos" onclick="showHint('pos')">💡 品詞を見る</button>
+      <button class="hint-btn" id="hintLetter" onclick="showHint('letter')">🔤 最初の文字</button>
+      <button class="hint-btn" id="hintEx" onclick="showHint('example')">📝 例文を見る</button>
+    </div>
+    <div class="hint-display" id="hintDisplay"></div>
+
+    <input type="text" class="answer-input" id="answerInput"
+           placeholder="答えを入力してください..."
+           onkeydown="if(event.key==='Enter')checkAnswer()">
+
+    <div class="action-row">
+      <button class="skip-btn" onclick="skipQuestion()">スキップ</button>
+      <button class="submit-btn" id="submitBtn" onclick="checkAnswer()">答え合わせ</button>
+      <button class="next-btn" id="nextBtn" onclick="nextQuestion()">次へ →</button>
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
+</div>
+
+<!-- RESULT SCREEN -->
+<div id="resultScreen">
+  <div class="result-title">🎉 クイズ終了！</div>
+  <div class="result-score" id="resultScore"></div>
+  <div class="result-sub" id="resultSub"></div>
+  <div class="result-grid">
+    <div class="result-box c"><div class="num" id="rCorrect">0</div><div class="lbl">正解</div></div>
+    <div class="result-box w"><div class="num" id="rWrong">0</div><div class="lbl">不正解</div></div>
+    <div class="result-box h"><div class="num" id="rHint">0</div><div class="lbl">ヒント使用</div></div>
+  </div>
+  <div class="mistake-section" id="mistakeSection"></div>
+  <button class="retry-btn" onclick="retryMistakes()">間違えた問題だけやり直す</button>
+  <button class="retry-btn" style="background: linear-gradient(135deg,#6a5acd,#483d8b); margin-bottom:10px" onclick="restart()">同じ設定でもう一度</button>
+  <button class="home-btn" onclick="goHome()">設定に戻る</button>
+</div>
+
+<script>
+// =====================================================================
+// WORD LIST (250語)
+// =====================================================================
+const WORDS = [
+  // ---- 中学レベル ----
+  { en:"apple", jp:"りんご", pos:"名詞", ex:"I eat an apple every day.", level:"junior" },
+  { en:"book", jp:"本", pos:"名詞", ex:"She reads a book before bed.", level:"junior" },
+  { en:"cat", jp:"猫", pos:"名詞", ex:"The cat is sleeping on the sofa.", level:"junior" },
+  { en:"dog", jp:"犬", pos:"名詞", ex:"My dog loves to run.", level:"junior" },
+  { en:"eat", jp:"食べる", pos:"動詞", ex:"We eat dinner at six.", level:"junior" },
+  { en:"friend", jp:"友達", pos:"名詞", ex:"She is my best friend.", level:"junior" },
+  { en:"go", jp:"行く", pos:"動詞", ex:"Let's go to the park.", level:"junior" },
+  { en:"happy", jp:"幸せな・嬉しい", pos:"形容詞", ex:"I am happy today.", level:"junior" },
+  { en:"house", jp:"家", pos:"名詞", ex:"They live in a big house.", level:"junior" },
+  { en:"important", jp:"重要な", pos:"形容詞", ex:"It is important to sleep well.", level:"junior" },
+  { en:"jump", jp:"跳ぶ", pos:"動詞", ex:"The frog can jump very high.", level:"junior" },
+  { en:"kind", jp:"親切な", pos:"形容詞", ex:"She is very kind to everyone.", level:"junior" },
+  { en:"like", jp:"好き", pos:"動詞", ex:"I like music.", level:"junior" },
+  { en:"make", jp:"作る", pos:"動詞", ex:"He makes dinner every night.", level:"junior" },
+  { en:"name", jp:"名前", pos:"名詞", ex:"What is your name?", level:"junior" },
+  { en:"open", jp:"開ける・開いている", pos:"動詞/形容詞", ex:"Please open the window.", level:"junior" },
+  { en:"play", jp:"遊ぶ・弾く", pos:"動詞", ex:"Children play outside after school.", level:"junior" },
+  { en:"quiet", jp:"静かな", pos:"形容詞", ex:"Please be quiet in the library.", level:"junior" },
+  { en:"read", jp:"読む", pos:"動詞", ex:"I read books every week.", level:"junior" },
+  { en:"school", jp:"学校", pos:"名詞", ex:"She walks to school every day.", level:"junior" },
+  { en:"talk", jp:"話す", pos:"動詞", ex:"We talk on the phone at night.", level:"junior" },
+  { en:"use", jp:"使う", pos:"動詞", ex:"I use a computer for homework.", level:"junior" },
+  { en:"visit", jp:"訪れる", pos:"動詞", ex:"We visit our grandparents on weekends.", level:"junior" },
+  { en:"want", jp:"欲しい・望む", pos:"動詞", ex:"I want a new bicycle.", level:"junior" },
+  { en:"year", jp:"年", pos:"名詞", ex:"She is ten years old.", level:"junior" },
+  { en:"young", jp:"若い", pos:"形容詞", ex:"He looks very young.", level:"junior" },
+  { en:"animal", jp:"動物", pos:"名詞", ex:"Lions are wild animals.", level:"junior" },
+  { en:"beautiful", jp:"美しい", pos:"形容詞", ex:"The flowers are beautiful.", level:"junior" },
+  { en:"buy", jp:"買う", pos:"動詞", ex:"She buys groceries on Saturdays.", level:"junior" },
+  { en:"clean", jp:"きれいな・掃除する", pos:"形容詞/動詞", ex:"Please clean your room.", level:"junior" },
+  { en:"cold", jp:"寒い・冷たい", pos:"形容詞", ex:"It is cold outside today.", level:"junior" },
+  { en:"cook", jp:"料理する", pos:"動詞", ex:"My mother cooks every evening.", level:"junior" },
+  { en:"country", jp:"国", pos:"名詞", ex:"Japan is a beautiful country.", level:"junior" },
+  { en:"dream", jp:"夢", pos:"名詞", ex:"Her dream is to become a doctor.", level:"junior" },
+  { en:"enjoy", jp:"楽しむ", pos:"動詞", ex:"We enjoy playing soccer.", level:"junior" },
+  { en:"family", jp:"家族", pos:"名詞", ex:"My family is very large.", level:"junior" },
+  { en:"fast", jp:"速い", pos:"形容詞", ex:"He is a fast runner.", level:"junior" },
+  { en:"give", jp:"与える", pos:"動詞", ex:"Please give me the book.", level:"junior" },
+  { en:"great", jp:"素晴らしい・偉大な", pos:"形容詞", ex:"That was a great movie!", level:"junior" },
+  { en:"help", jp:"助ける・手伝う", pos:"動詞", ex:"Can you help me with this?", level:"junior" },
+  { en:"hobby", jp:"趣味", pos:"名詞", ex:"My hobby is drawing pictures.", level:"junior" },
+  { en:"hot", jp:"暑い・熱い", pos:"形容詞", ex:"The soup is too hot.", level:"junior" },
+  { en:"idea", jp:"考え・アイデア", pos:"名詞", ex:"That is a great idea!", level:"junior" },
+  { en:"know", jp:"知っている", pos:"動詞", ex:"I know the answer.", level:"junior" },
+  { en:"leave", jp:"去る・出発する", pos:"動詞", ex:"The train leaves at eight.", level:"junior" },
+  { en:"letter", jp:"手紙・文字", pos:"名詞", ex:"She wrote a letter to her friend.", level:"junior" },
+  { en:"listen", jp:"聞く", pos:"動詞", ex:"Please listen carefully.", level:"junior" },
+  { en:"long", jp:"長い", pos:"形容詞", ex:"The river is very long.", level:"junior" },
+  { en:"look", jp:"見る・見える", pos:"動詞", ex:"Look at that beautiful sunset!", level:"junior" },
+  { en:"love", jp:"愛する・大好き", pos:"動詞/名詞", ex:"I love my family.", level:"junior" },
+  { en:"lunch", jp:"昼食", pos:"名詞", ex:"We have lunch at noon.", level:"junior" },
+  { en:"money", jp:"お金", pos:"名詞", ex:"He saved money for a trip.", level:"junior" },
+  { en:"morning", jp:"朝", pos:"名詞", ex:"I jog every morning.", level:"junior" },
+  { en:"much", jp:"たくさん・とても", pos:"副詞/形容詞", ex:"Thank you very much.", level:"junior" },
+  { en:"music", jp:"音楽", pos:"名詞", ex:"I listen to music every day.", level:"junior" },
+  { en:"new", jp:"新しい", pos:"形容詞", ex:"She has a new teacher.", level:"junior" },
+  { en:"nice", jp:"良い・素敵な", pos:"形容詞", ex:"What a nice day!", level:"junior" },
+  { en:"night", jp:"夜", pos:"名詞", ex:"Stars shine at night.", level:"junior" },
+  { en:"often", jp:"よく・しばしば", pos:"副詞", ex:"We often go to the library.", level:"junior" },
+  { en:"old", jp:"古い・年をとった", pos:"形容詞", ex:"This is an old temple.", level:"junior" },
+  { en:"people", jp:"人々", pos:"名詞", ex:"Many people visited the museum.", level:"junior" },
+  { en:"phone", jp:"電話", pos:"名詞", ex:"She answered the phone.", level:"junior" },
+  { en:"picture", jp:"絵・写真", pos:"名詞", ex:"He drew a picture of the mountain.", level:"junior" },
+  { en:"place", jp:"場所", pos:"名詞", ex:"This is a beautiful place.", level:"junior" },
+  { en:"popular", jp:"人気のある", pos:"形容詞", ex:"This singer is very popular.", level:"junior" },
+  { en:"practice", jp:"練習する", pos:"動詞", ex:"She practices piano every day.", level:"junior" },
+  { en:"right", jp:"正しい・右", pos:"形容詞/名詞", ex:"That is the right answer.", level:"junior" },
+  { en:"run", jp:"走る", pos:"動詞", ex:"He runs five kilometers every morning.", level:"junior" },
+  { en:"season", jp:"季節", pos:"名詞", ex:"My favorite season is autumn.", level:"junior" },
+  { en:"see", jp:"見える・会う", pos:"動詞", ex:"I can see the mountains from here.", level:"junior" },
+  { en:"send", jp:"送る", pos:"動詞", ex:"She sent a letter to her friend.", level:"junior" },
+  { en:"short", jp:"短い・低い", pos:"形容詞", ex:"The days are short in winter.", level:"junior" },
+  { en:"sing", jp:"歌う", pos:"動詞", ex:"She loves to sing songs.", level:"junior" },
+  { en:"small", jp:"小さい", pos:"形容詞", ex:"The mouse is a small animal.", level:"junior" },
+  { en:"sport", jp:"スポーツ", pos:"名詞", ex:"My favorite sport is soccer.", level:"junior" },
+  { en:"start", jp:"始める・始まる", pos:"動詞", ex:"The concert starts at seven.", level:"junior" },
+  { en:"stay", jp:"滞在する・いる", pos:"動詞", ex:"We stayed at a hotel.", level:"junior" },
+  { en:"strong", jp:"強い", pos:"形容詞", ex:"He is a strong athlete.", level:"junior" },
+  { en:"study", jp:"勉強する", pos:"動詞", ex:"I study math every night.", level:"junior" },
+  { en:"swim", jp:"泳ぐ", pos:"動詞", ex:"She can swim very fast.", level:"junior" },
+  { en:"take", jp:"取る・連れていく", pos:"動詞", ex:"Take an umbrella with you.", level:"junior" },
+  { en:"teach", jp:"教える", pos:"動詞", ex:"She teaches English at school.", level:"junior" },
+  { en:"think", jp:"思う・考える", pos:"動詞", ex:"I think it will rain today.", level:"junior" },
+  { en:"time", jp:"時間・時", pos:"名詞", ex:"What time is it now?", level:"junior" },
+  { en:"tired", jp:"疲れた", pos:"形容詞", ex:"I am tired after the long walk.", level:"junior" },
+  { en:"today", jp:"今日", pos:"名詞/副詞", ex:"Today is a sunny day.", level:"junior" },
+  { en:"travel", jp:"旅行する", pos:"動詞", ex:"He loves to travel abroad.", level:"junior" },
+  { en:"try", jp:"試みる・挑戦する", pos:"動詞", ex:"Try your best!", level:"junior" },
+  { en:"understand", jp:"理解する", pos:"動詞", ex:"Do you understand the question?", level:"junior" },
+  { en:"wait", jp:"待つ", pos:"動詞", ex:"Please wait a moment.", level:"junior" },
+  { en:"walk", jp:"歩く", pos:"動詞", ex:"I walk to school every day.", level:"junior" },
+  { en:"watch", jp:"見る・時計", pos:"動詞/名詞", ex:"I watch TV after dinner.", level:"junior" },
+  { en:"weather", jp:"天気", pos:"名詞", ex:"The weather is nice today.", level:"junior" },
+  { en:"work", jp:"働く・仕事", pos:"動詞/名詞", ex:"He works at a hospital.", level:"junior" },
+  { en:"write", jp:"書く", pos:"動詞", ex:"Please write your name here.", level:"junior" },
+  { en:"city", jp:"都市・市", pos:"名詞", ex:"Tokyo is a big city.", level:"junior" },
+  { en:"always", jp:"いつも", pos:"副詞", ex:"She always smiles.", level:"junior" },
+  { en:"answer", jp:"答え・答える", pos:"名詞/動詞", ex:"Please answer the question.", level:"junior" },
+  { en:"begin", jp:"始める・始まる", pos:"動詞", ex:"Class begins at eight-thirty.", level:"junior" },
+  { en:"bring", jp:"持ってくる", pos:"動詞", ex:"Bring your textbook to class.", level:"junior" },
+  { en:"call", jp:"呼ぶ・電話する", pos:"動詞", ex:"Please call me at ten.", level:"junior" },
+  { en:"change", jp:"変える・変化", pos:"動詞/名詞", ex:"The weather can change quickly.", level:"junior" },
+  { en:"child", jp:"子供", pos:"名詞", ex:"Every child loves to play.", level:"junior" },
+
+  // ---- 高校レベル ----
+  { en:"achieve", jp:"達成する", pos:"動詞", ex:"She achieved her goal.", level:"senior" },
+  { en:"affect", jp:"影響する", pos:"動詞", ex:"Stress can affect your health.", level:"senior" },
+  { en:"allow", jp:"許可する・させる", pos:"動詞", ex:"Students are allowed to use dictionaries.", level:"senior" },
+  { en:"approach", jp:"接近する・アプローチ", pos:"動詞/名詞", ex:"A new approach is needed.", level:"senior" },
+  { en:"argue", jp:"主張する・議論する", pos:"動詞", ex:"They argued about politics.", level:"senior" },
+  { en:"aware", jp:"気づいている", pos:"形容詞", ex:"Are you aware of the risks?", level:"senior" },
+  { en:"benefit", jp:"利益・恩恵", pos:"名詞", ex:"Regular exercise has many benefits.", level:"senior" },
+  { en:"challenge", jp:"挑戦・課題", pos:"名詞", ex:"Learning a language is a great challenge.", level:"senior" },
+  { en:"character", jp:"性格・文字・登場人物", pos:"名詞", ex:"She has a strong character.", level:"senior" },
+  { en:"communicate", jp:"コミュニケーションをとる", pos:"動詞", ex:"It is important to communicate clearly.", level:"senior" },
+  { en:"community", jp:"地域社会・コミュニティ", pos:"名詞", ex:"They work to improve their community.", level:"senior" },
+  { en:"compare", jp:"比較する", pos:"動詞", ex:"Compare the two products carefully.", level:"senior" },
+  { en:"complex", jp:"複雑な", pos:"形容詞", ex:"This math problem is very complex.", level:"senior" },
+  { en:"concern", jp:"心配・懸念", pos:"名詞/動詞", ex:"Climate change is a major concern.", level:"senior" },
+  { en:"consider", jp:"考慮する", pos:"動詞", ex:"Please consider all the options.", level:"senior" },
+  { en:"contain", jp:"含む", pos:"動詞", ex:"This soup contains a lot of vegetables.", level:"senior" },
+  { en:"continue", jp:"続ける・続く", pos:"動詞", ex:"Please continue your work.", level:"senior" },
+  { en:"contribute", jp:"貢献する", pos:"動詞", ex:"Everyone can contribute to society.", level:"senior" },
+  { en:"create", jp:"作り出す・創造する", pos:"動詞", ex:"She creates art every day.", level:"senior" },
+  { en:"culture", jp:"文化", pos:"名詞", ex:"Japan has a rich culture.", level:"senior" },
+  { en:"current", jp:"現在の・流れ", pos:"形容詞/名詞", ex:"What is the current situation?", level:"senior" },
+  { en:"damage", jp:"損害・ダメージ", pos:"名詞/動詞", ex:"The storm caused serious damage.", level:"senior" },
+  { en:"decision", jp:"決定・判断", pos:"名詞", ex:"It was a difficult decision to make.", level:"senior" },
+  { en:"decrease", jp:"減少する・減らす", pos:"動詞/名詞", ex:"The temperature will decrease tonight.", level:"senior" },
+  { en:"demand", jp:"要求する・需要", pos:"動詞/名詞", ex:"The demand for electricity is growing.", level:"senior" },
+  { en:"describe", jp:"描写する・説明する", pos:"動詞", ex:"Describe what you see in the picture.", level:"senior" },
+  { en:"develop", jp:"発展させる・開発する", pos:"動詞", ex:"He developed a new app.", level:"senior" },
+  { en:"difference", jp:"違い・差", pos:"名詞", ex:"What is the difference between A and B?", level:"senior" },
+  { en:"difficult", jp:"難しい", pos:"形容詞", ex:"The exam was very difficult.", level:"senior" },
+  { en:"discover", jp:"発見する", pos:"動詞", ex:"Columbus discovered America in 1492.", level:"senior" },
+  { en:"discuss", jp:"議論する", pos:"動詞", ex:"Let's discuss this problem together.", level:"senior" },
+  { en:"diverse", jp:"多様な", pos:"形容詞", ex:"Our school has a diverse student body.", level:"senior" },
+  { en:"economy", jp:"経済", pos:"名詞", ex:"The economy is growing rapidly.", level:"senior" },
+  { en:"education", jp:"教育", pos:"名詞", ex:"Education is the key to success.", level:"senior" },
+  { en:"effective", jp:"効果的な", pos:"形容詞", ex:"This is an effective method.", level:"senior" },
+  { en:"emotion", jp:"感情", pos:"名詞", ex:"Music can express strong emotions.", level:"senior" },
+  { en:"encourage", jp:"励ます・奨励する", pos:"動詞", ex:"Teachers encourage students to read more.", level:"senior" },
+  { en:"environment", jp:"環境", pos:"名詞", ex:"We must protect the environment.", level:"senior" },
+  { en:"establish", jp:"設立する・確立する", pos:"動詞", ex:"The company was established in 1990.", level:"senior" },
+  { en:"event", jp:"出来事・イベント", pos:"名詞", ex:"The sports event attracted many fans.", level:"senior" },
+  { en:"evidence", jp:"証拠", pos:"名詞", ex:"There is no evidence of the crime.", level:"senior" },
+  { en:"experience", jp:"経験", pos:"名詞", ex:"She has a lot of teaching experience.", level:"senior" },
+  { en:"explain", jp:"説明する", pos:"動詞", ex:"Please explain your answer.", level:"senior" },
+  { en:"express", jp:"表現する", pos:"動詞", ex:"She expressed her feelings in a poem.", level:"senior" },
+  { en:"fail", jp:"失敗する", pos:"動詞", ex:"Don't be afraid to fail.", level:"senior" },
+  { en:"focus", jp:"集中する・焦点", pos:"動詞/名詞", ex:"Focus on what is important.", level:"senior" },
+  { en:"force", jp:"力・強制する", pos:"名詞/動詞", ex:"The wind was a powerful force.", level:"senior" },
+  { en:"future", jp:"未来・将来", pos:"名詞", ex:"No one knows the future.", level:"senior" },
+  { en:"generate", jp:"生み出す・発生させる", pos:"動詞", ex:"Solar panels generate electricity.", level:"senior" },
+  { en:"global", jp:"世界的な・地球規模の", pos:"形容詞", ex:"Climate change is a global problem.", level:"senior" },
+  { en:"goal", jp:"目標・ゴール", pos:"名詞", ex:"Set a clear goal for yourself.", level:"senior" },
+  { en:"government", jp:"政府", pos:"名詞", ex:"The government announced a new policy.", level:"senior" },
+  { en:"grow", jp:"成長する・育てる", pos:"動詞", ex:"Children grow quickly.", level:"senior" },
+  { en:"harm", jp:"害・傷つける", pos:"名詞/動詞", ex:"Smoking can harm your health.", level:"senior" },
+  { en:"health", jp:"健康", pos:"名詞", ex:"Good sleep is important for your health.", level:"senior" },
+  { en:"human", jp:"人間・人間の", pos:"名詞/形容詞", ex:"All humans need food and water.", level:"senior" },
+  { en:"identify", jp:"識別する・特定する", pos:"動詞", ex:"Can you identify the problem?", level:"senior" },
+  { en:"image", jp:"画像・イメージ", pos:"名詞", ex:"The image on the screen is clear.", level:"senior" },
+  { en:"improve", jp:"改善する・上達する", pos:"動詞", ex:"Practice will improve your skills.", level:"senior" },
+  { en:"increase", jp:"増加する・増やす", pos:"動詞/名詞", ex:"Prices are increasing every year.", level:"senior" },
+  { en:"indicate", jp:"示す・指し示す", pos:"動詞", ex:"The sign indicates the direction.", level:"senior" },
+  { en:"industry", jp:"産業・工業", pos:"名詞", ex:"The technology industry is growing fast.", level:"senior" },
+  { en:"influence", jp:"影響・影響を与える", pos:"名詞/動詞", ex:"Music has a strong influence on people.", level:"senior" },
+  { en:"inform", jp:"知らせる", pos:"動詞", ex:"Please inform me of any changes.", level:"senior" },
+  { en:"international", jp:"国際的な", pos:"形容詞", ex:"This is an international conference.", level:"senior" },
+  { en:"introduce", jp:"紹介する・導入する", pos:"動詞", ex:"Let me introduce myself.", level:"senior" },
+  { en:"involve", jp:"含む・巻き込む", pos:"動詞", ex:"The project involves many people.", level:"senior" },
+  { en:"issue", jp:"問題・課題", pos:"名詞", ex:"This is an important social issue.", level:"senior" },
+  { en:"knowledge", jp:"知識", pos:"名詞", ex:"Knowledge is power.", level:"senior" },
+  { en:"lack", jp:"欠乏・欠ける", pos:"名詞/動詞", ex:"He lacks confidence.", level:"senior" },
+  { en:"language", jp:"言語", pos:"名詞", ex:"English is a global language.", level:"senior" },
+  { en:"limit", jp:"限界・制限する", pos:"名詞/動詞", ex:"There is a time limit for the test.", level:"senior" },
+  { en:"local", jp:"地元の・地域の", pos:"形容詞", ex:"We buy local vegetables.", level:"senior" },
+  { en:"maintain", jp:"維持する・保つ", pos:"動詞", ex:"It is hard to maintain good habits.", level:"senior" },
+  { en:"manage", jp:"管理する・なんとかする", pos:"動詞", ex:"She manages a team of ten people.", level:"senior" },
+  { en:"material", jp:"材料・素材", pos:"名詞", ex:"This bag is made of recycled material.", level:"senior" },
+  { en:"method", jp:"方法", pos:"名詞", ex:"This is an effective teaching method.", level:"senior" },
+  { en:"modern", jp:"現代の・近代の", pos:"形容詞", ex:"Modern technology changes our lives.", level:"senior" },
+  { en:"natural", jp:"自然の・当然の", pos:"形容詞", ex:"It is natural to feel nervous.", level:"senior" },
+  { en:"necessary", jp:"必要な", pos:"形容詞", ex:"A dictionary is necessary for reading.", level:"senior" },
+  { en:"negative", jp:"否定的な・マイナスの", pos:"形容詞", ex:"Try to avoid negative thinking.", level:"senior" },
+  { en:"opportunity", jp:"機会・チャンス", pos:"名詞", ex:"Don't miss this great opportunity.", level:"senior" },
+  { en:"opinion", jp:"意見", pos:"名詞", ex:"What is your opinion on this topic?", level:"senior" },
+  { en:"original", jp:"元の・独創的な", pos:"形容詞", ex:"This is an original idea.", level:"senior" },
+  { en:"overcome", jp:"克服する", pos:"動詞", ex:"She overcame many difficulties.", level:"senior" },
+  { en:"participate", jp:"参加する", pos:"動詞", ex:"Everyone is welcome to participate.", level:"senior" },
+  { en:"particular", jp:"特定の・特別な", pos:"形容詞", ex:"I have no particular preference.", level:"senior" },
+  { en:"period", jp:"期間・時代", pos:"名詞", ex:"The Meiji period began in 1868.", level:"senior" },
+  { en:"positive", jp:"肯定的な・前向きな", pos:"形容詞", ex:"Keep a positive attitude.", level:"senior" },
+  { en:"prevent", jp:"防ぐ・妨げる", pos:"動詞", ex:"Exercise can prevent many diseases.", level:"senior" },
+  { en:"primary", jp:"主要な・第一の", pos:"形容詞", ex:"The primary goal is to finish on time.", level:"senior" },
+  { en:"principle", jp:"原理・原則", pos:"名詞", ex:"We follow the principle of fairness.", level:"senior" },
+  { en:"problem", jp:"問題", pos:"名詞", ex:"We need to solve this problem.", level:"senior" },
+  { en:"process", jp:"過程・処理する", pos:"名詞/動詞", ex:"The process takes about three days.", level:"senior" },
+  { en:"produce", jp:"生産する・生み出す", pos:"動詞", ex:"This region produces a lot of rice.", level:"senior" },
+  { en:"protect", jp:"保護する・守る", pos:"動詞", ex:"We must protect wildlife.", level:"senior" },
+  { en:"provide", jp:"提供する", pos:"動詞", ex:"The school provides free lunch.", level:"senior" },
+  { en:"realize", jp:"気づく・実現する", pos:"動詞", ex:"I realized I had made a mistake.", level:"senior" },
+  { en:"reduce", jp:"減らす", pos:"動詞", ex:"We should reduce plastic use.", level:"senior" },
+  { en:"relate", jp:"関連する", pos:"動詞", ex:"These two problems are closely related.", level:"senior" },
+  { en:"release", jp:"解放する・公開する", pos:"動詞", ex:"The movie was released last month.", level:"senior" },
+  { en:"represent", jp:"表す・代表する", pos:"動詞", ex:"The flag represents the nation.", level:"senior" },
+  { en:"require", jp:"必要とする・要求する", pos:"動詞", ex:"The job requires good communication skills.", level:"senior" },
+  { en:"research", jp:"研究・調査", pos:"名詞/動詞", ex:"Scientists research new medicines.", level:"senior" },
+  { en:"resource", jp:"資源・リソース", pos:"名詞", ex:"Water is a precious resource.", level:"senior" },
+  { en:"responsible", jp:"責任ある", pos:"形容詞", ex:"Be responsible for your actions.", level:"senior" },
+  { en:"result", jp:"結果", pos:"名詞", ex:"Hard work leads to good results.", level:"senior" },
+  { en:"role", jp:"役割", pos:"名詞", ex:"She plays an important role in the team.", level:"senior" },
+  { en:"save", jp:"救う・節約する", pos:"動詞", ex:"We should save energy.", level:"senior" },
+  { en:"serious", jp:"深刻な・真剣な", pos:"形容詞", ex:"This is a serious problem.", level:"senior" },
+  { en:"share", jp:"共有する・分かち合う", pos:"動詞", ex:"Please share your ideas.", level:"senior" },
+  { en:"significant", jp:"重要な・著しい", pos:"形容詞", ex:"There has been significant progress.", level:"senior" },
+  { en:"similar", jp:"似ている", pos:"形容詞", ex:"Their opinions are very similar.", level:"senior" },
+  { en:"situation", jp:"状況・場面", pos:"名詞", ex:"We are in a difficult situation.", level:"senior" },
+  { en:"social", jp:"社会的な", pos:"形容詞", ex:"Social media connects people worldwide.", level:"senior" },
+  { en:"society", jp:"社会", pos:"名詞", ex:"We all live in the same society.", level:"senior" },
+  { en:"solve", jp:"解く・解決する", pos:"動詞", ex:"Can you solve this math problem?", level:"senior" },
+  { en:"source", jp:"源・情報源", pos:"名詞", ex:"The sun is a source of energy.", level:"senior" },
+  { en:"strategy", jp:"戦略", pos:"名詞", ex:"We need a better strategy.", level:"senior" },
+  { en:"structure", jp:"構造・建造物", pos:"名詞", ex:"The bridge has a strong structure.", level:"senior" },
+  { en:"success", jp:"成功", pos:"名詞", ex:"Hard work leads to success.", level:"senior" },
+  { en:"suggest", jp:"提案する", pos:"動詞", ex:"She suggested a new plan.", level:"senior" },
+  { en:"support", jp:"支持する・支援", pos:"動詞/名詞", ex:"Please support your local businesses.", level:"senior" },
+  { en:"survive", jp:"生き残る", pos:"動詞", ex:"How did they survive the storm?", level:"senior" },
+  { en:"symbol", jp:"象徴・記号", pos:"名詞", ex:"The dove is a symbol of peace.", level:"senior" },
+  { en:"technology", jp:"技術・テクノロジー", pos:"名詞", ex:"Technology is changing rapidly.", level:"senior" },
+  { en:"traditional", jp:"伝統的な", pos:"形容詞", ex:"They celebrated a traditional festival.", level:"senior" },
+  { en:"transform", jp:"変容させる・変換する", pos:"動詞", ex:"Technology has transformed our lives.", level:"senior" },
+  { en:"typically", jp:"一般的に・典型的に", pos:"副詞", ex:"She typically wakes up early.", level:"senior" },
+  { en:"unique", jp:"独特な・唯一の", pos:"形容詞", ex:"Every person is unique.", level:"senior" },
+  { en:"value", jp:"価値・大切にする", pos:"名詞/動詞", ex:"She values her friendships.", level:"senior" },
+  { en:"variety", jp:"多様性・種類", pos:"名詞", ex:"The menu has a wide variety of dishes.", level:"senior" },
+  { en:"various", jp:"様々な", pos:"形容詞", ex:"There are various ways to solve this.", level:"senior" },
+  { en:"view", jp:"眺め・見方", pos:"名詞", ex:"The view from the top is amazing.", level:"senior" },
+  { en:"volunteer", jp:"ボランティア", pos:"名詞/動詞", ex:"She volunteers at the local shelter.", level:"senior" },
+  { en:"whereas", jp:"一方で・であるのに対し", pos:"接続詞", ex:"He is tall, whereas his brother is short.", level:"senior" },
+  { en:"widespread", jp:"広く普及した・広範な", pos:"形容詞", ex:"The disease became widespread.", level:"senior" },
+  { en:"population", jp:"人口", pos:"名詞", ex:"The world population is over 8 billion.", level:"senior" },
+  { en:"pollution", jp:"汚染", pos:"名詞", ex:"Air pollution is a serious problem.", level:"senior" },
+  { en:"communicate", jp:"意思疎通する", pos:"動詞", ex:"We communicate through language.", level:"senior" },
+  { en:"revolution", jp:"革命", pos:"名詞", ex:"The industrial revolution changed the world.", level:"senior" },
+  { en:"statistics", jp:"統計", pos:"名詞", ex:"Statistics show that exercise is good.", level:"senior" },
+  { en:"sustainable", jp:"持続可能な", pos:"形容詞", ex:"We need sustainable energy sources.", level:"senior" },
+  { en:"absolute", jp:"絶対的な・完全な", pos:"形容詞", ex:"She has absolute confidence in herself.", level:"senior" },
+  { en:"abstract", jp:"抽象的な", pos:"形容詞", ex:"This is a rather abstract concept.", level:"senior" },
+  { en:"analysis", jp:"分析", pos:"名詞", ex:"A careful analysis is needed.", level:"senior" },
+  { en:"ambiguous", jp:"曖昧な", pos:"形容詞", ex:"His answer was ambiguous.", level:"senior" },
+  { en:"consequence", jp:"結果・影響", pos:"名詞", ex:"Think about the consequences of your actions.", level:"senior" },
+  { en:"consistent", jp:"一貫した", pos:"形容詞", ex:"Be consistent in your efforts.", level:"senior" },
+  { en:"controversial", jp:"論争的な・議論を呼ぶ", pos:"形容詞", ex:"It is a controversial topic.", level:"senior" },
+  { en:"crucial", jp:"重大な・不可欠な", pos:"形容詞", ex:"Timing is crucial in this game.", level:"senior" },
+  { en:"diversity", jp:"多様性", pos:"名詞", ex:"Diversity makes us stronger.", level:"senior" },
+  { en:"evaluate", jp:"評価する", pos:"動詞", ex:"We need to evaluate the results.", level:"senior" },
+  { en:"fundamental", jp:"基本的な・根本的な", pos:"形容詞", ex:"Freedom is a fundamental right.", level:"senior" },
+  { en:"hypothesis", jp:"仮説", pos:"名詞", ex:"Scientists test their hypotheses.", level:"senior" },
+  { en:"inevitable", jp:"避けられない・必然的な", pos:"形容詞", ex:"Change is inevitable.", level:"senior" },
+  { en:"interpret", jp:"解釈する・通訳する", pos:"動詞", ex:"How do you interpret this poem?", level:"senior" },
+  { en:"justify", jp:"正当化する", pos:"動詞", ex:"Can you justify your decision?", level:"senior" },
+  { en:"objective", jp:"客観的な・目標", pos:"形容詞/名詞", ex:"Try to be objective in your judgment.", level:"senior" },
+  { en:"phenomenon", jp:"現象", pos:"名詞", ex:"Rainbows are a natural phenomenon.", level:"senior" },
+  { en:"perspective", jp:"視点・見方", pos:"名詞", ex:"Try to see it from a different perspective.", level:"senior" },
+  { en:"precise", jp:"正確な", pos:"形容詞", ex:"Please give a precise answer.", level:"senior" },
+  { en:"priority", jp:"優先事項・優先度", pos:"名詞", ex:"Health should be your top priority.", level:"senior" },
+  { en:"relevant", jp:"関連した・適切な", pos:"形容詞", ex:"Is this information relevant to our topic?", level:"senior" },
+  { en:"sufficient", jp:"十分な", pos:"形容詞", ex:"We have sufficient supplies.", level:"senior" },
+  { en:"tendency", jp:"傾向", pos:"名詞", ex:"She has a tendency to worry.", level:"senior" },
+  { en:"ultimately", jp:"最終的に", pos:"副詞", ex:"Ultimately, you must decide for yourself.", level:"senior" },
+  { en:"whereas", jp:"〜である一方", pos:"接続詞", ex:"He is shy, whereas she is outgoing.", level:"senior" },
+];
+
+// =====================================================================
+// STATE
+// =====================================================================
+let settings = { mode:"en2jp", level:"all", count:20 };
+let queue = [];
+let current = 0;
+let stats = { correct:0, incorrect:0, hints:0 };
+let mistakes = [];
+let hintsUsed = { pos:false, letter:false, example:false };
+let answered = false;
+let retryMode = false;
+
+// =====================================================================
+// START SCREEN
+// =====================================================================
+document.querySelectorAll('.radio-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const group = this.dataset.group;
+    document.querySelectorAll(`.radio-btn[data-group="${group}"]`).forEach(b => b.classList.remove('selected'));
+    this.classList.add('selected');
+    settings[group] = this.dataset.val;
+  });
+});
+
+const countSlider = document.getElementById('countSlider');
+const countVal = document.getElementById('countVal');
+countSlider.addEventListener('input', () => { countVal.textContent = countSlider.value; });
+
+document.getElementById('startBtn').addEventListener('click', startQuiz);
+
+function startQuiz() {
+  let pool = WORDS.filter(w => {
+    if (settings.level === 'junior') return w.level === 'junior';
+    if (settings.level === 'senior') return w.level === 'senior';
+    return true;
+  });
+  // shuffle
+  pool = pool.sort(() => Math.random() - 0.5);
+  const count = Math.min(parseInt(countSlider.value), pool.length);
+  queue = pool.slice(0, count);
+  current = 0;
+  stats = { correct:0, incorrect:0, hints:0 };
+  mistakes = [];
+  retryMode = false;
+
+  document.getElementById('startScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  document.getElementById('resultScreen').style.display = 'none';
+  renderQuestion();
+}
+
+// =====================================================================
+// QUIZ
+// =====================================================================
+function getMode(idx) {
+  if (settings.mode === 'en2jp') return 'en2jp';
+  if (settings.mode === 'jp2en') return 'jp2en';
+  return idx % 2 === 0 ? 'en2jp' : 'jp2en';
+}
+
+function renderQuestion() {
+  const w = queue[current];
+  const mode = getMode(current);
+  answered = false;
+  hintsUsed = { pos:false, letter:false, example:false };
+
+  // Progress
+  const pct = (current / queue.length) * 100;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${current + 1} / ${queue.length}`;
+
+  // Badge
+  const badge = document.getElementById('modeBadge');
+  if (mode === 'en2jp') {
+    badge.textContent = '英語 → 日本語';
+    badge.className = 'mode-badge badge-en';
+    document.getElementById('questionNote').textContent = '日本語の意味を入力してください';
+  } else {
+    badge.textContent = '日本語 → 英語';
+    badge.className = 'mode-badge badge-jp';
+    document.getElementById('questionNote').textContent = '英単語を入力してください';
+  }
+
+  document.getElementById('questionWord').textContent = mode === 'en2jp' ? w.en : w.jp;
+
+  // Hints
+  document.getElementById('hintDisplay').textContent = '';
+  document.getElementById('hintPos').classList.remove('used');
+  document.getElementById('hintLetter').classList.remove('used');
+  document.getElementById('hintEx').classList.remove('used');
+  ['hintPos','hintLetter','hintEx'].forEach(id => {
+    document.getElementById(id).disabled = false;
+  });
+
+  // Input
+  const input = document.getElementById('answerInput');
+  input.value = '';
+  input.className = 'answer-input';
+  input.disabled = false;
+  input.placeholder = mode === 'en2jp' ? '日本語で入力...' : 'English word...';
+
+  // Buttons
+  document.getElementById('submitBtn').style.display = '';
+  document.getElementById('nextBtn').style.display = 'none';
+
+  // Feedback
+  const fb = document.getElementById('feedback');
+  fb.style.display = 'none';
+  fb.className = 'feedback';
+
+  // Scores
+  document.getElementById('correctCount').textContent = stats.correct;
+  document.getElementById('incorrectCount').textContent = stats.incorrect;
+  document.getElementById('hintCount').textContent = stats.hints;
+
+  input.focus();
+}
+
+function showHint(type) {
+  const w = queue[current];
+  const mode = getMode(current);
+  const display = document.getElementById('hintDisplay');
+  const btn = document.getElementById(type === 'pos' ? 'hintPos' : type === 'letter' ? 'hintLetter' : 'hintEx');
+  const wasUsed = hintsUsed[type === 'pos' ? 'pos' : type === 'letter' ? 'letter' : 'example'];
+
+  if (!wasUsed) {
+    if (!answered) stats.hints++;
+    hintsUsed[type === 'pos' ? 'pos' : type === 'letter' ? 'letter' : 'example'] = true;
+    btn.classList.add('used');
+    document.getElementById('hintCount').textContent = stats.hints;
+  }
+
+  let hints = [];
+  if (hintsUsed.pos) hints.push(`💡 品詞: ${w.pos}`);
+  if (hintsUsed.letter) {
+    const target = mode === 'en2jp' ? w.jp : w.en;
+    hints.push(`🔤 最初の文字: 「${target[0]}」（全${target.length}文字）`);
+  }
+  if (hintsUsed.example) hints.push(`📝 例文: ${w.ex}`);
+  display.textContent = hints.join('　　');
+}
+
+function checkAnswer() {
+  if (answered) return;
+  const w = queue[current];
+  const mode = getMode(current);
+  const input = document.getElementById('answerInput');
+  const userAns = input.value.trim();
+  if (!userAns) { input.focus(); return; }
+
+  answered = true;
+  input.disabled = true;
+
+  // Normalize answer comparison
+  const correctAns = mode === 'en2jp' ? w.jp : w.en;
+  const normalize = s => s.toLowerCase().replace(/[・、。\s　]/g, '');
+  const isCorrect = normalize(userAns) === normalize(correctAns) ||
+    (mode === 'en2jp' && correctAns.split('・').some(c => normalize(userAns) === normalize(c))) ||
+    (mode === 'jp2en' && normalize(userAns) === normalize(w.en));
+
+  const fb = document.getElementById('feedback');
+  fb.style.display = 'block';
+
+  if (isCorrect) {
+    stats.correct++;
+    input.classList.add('correct');
+    fb.className = 'feedback correct';
+    fb.textContent = `✅ 正解！　正答: ${correctAns}`;
+  } else {
+    stats.incorrect++;
+    input.classList.add('incorrect');
+    fb.className = 'feedback incorrect';
+    fb.innerHTML = `❌ 不正解　正答: <strong>${correctAns}</strong>`;
+    mistakes.push({ ...w, mode });
+  }
+
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('nextBtn').style.display = '';
+  document.getElementById('correctCount').textContent = stats.correct;
+  document.getElementById('incorrectCount').textContent = stats.incorrect;
+}
+
+function skipQuestion() {
+  if (answered) return;
+  answered = true;
+  const w = queue[current];
+  const mode = getMode(current);
+  const correctAns = mode === 'en2jp' ? w.jp : w.en;
+  stats.incorrect++;
+  mistakes.push({ ...w, mode });
+  const fb = document.getElementById('feedback');
+  fb.style.display = 'block';
+  fb.className = 'feedback incorrect';
+  fb.innerHTML = `⏭ スキップ　正答: <strong>${correctAns}</strong>`;
+  document.getElementById('answerInput').disabled = true;
+  document.getElementById('submitBtn').style.display = 'none';
+  document.getElementById('nextBtn').style.display = '';
+  document.getElementById('incorrectCount').textContent = stats.incorrect;
+}
+
+function nextQuestion() {
+  current++;
+  if (current >= queue.length) {
+    showResult();
+  } else {
+    renderQuestion();
+  }
+}
+
+// =====================================================================
+// RESULT
+// =====================================================================
+function showResult() {
+  document.getElementById('quizScreen').style.display = 'none';
+  document.getElementById('resultScreen').style.display = 'block';
+
+  const total = queue.length;
+  const pct = Math.round((stats.correct / total) * 100);
+  document.getElementById('resultScore').textContent = `${pct}%`;
+  document.getElementById('resultSub').textContent = `${total}問中 ${stats.correct}問正解`;
+  document.getElementById('rCorrect').textContent = stats.correct;
+  document.getElementById('rWrong').textContent = stats.incorrect;
+  document.getElementById('rHint').textContent = stats.hints;
+
+  const ms = document.getElementById('mistakeSection');
+  if (mistakes.length === 0) {
+    ms.innerHTML = '<p style="color:#4caf50;text-align:center;font-size:0.95rem;">🎉 全問正解です！素晴らしい！</p>';
+  } else {
+    ms.innerHTML = `<h3>間違えた問題（${mistakes.length}問）</h3>` +
+      [...new Map(mistakes.map(m => [m.en, m])).values()].map(m =>
+        `<div class="mistake-item">
+          <span class="en">${m.en}</span> ／ ${m.jp}
+          <span style="color:#aaa;font-size:0.8rem;margin-left:8px;">${m.pos}</span>
+        </div>`
+      ).join('');
+  }
+
+  // Hide retry button if no mistakes
+  document.querySelector('.retry-btn').style.display = mistakes.length ? '' : 'none';
+}
+
+function retryMistakes() {
+  if (mistakes.length === 0) return;
+  const unique = [...new Map(mistakes.map(m => [m.en, m])).values()];
+  queue = unique.sort(() => Math.random() - 0.5);
+  current = 0;
+  stats = { correct:0, incorrect:0, hints:0 };
+  mistakes = [];
+  retryMode = true;
+
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('quizScreen').style.display = 'block';
+  renderQuestion();
+}
+
+function restart() {
+  document.getElementById('resultScreen').style.display = 'none';
+  startQuiz();
+}
+
+function goHome() {
+  document.getElementById('resultScreen').style.display = 'none';
+  document.getElementById('startScreen').style.display = 'block';
+}
+</script>
+</body>
+</html>
