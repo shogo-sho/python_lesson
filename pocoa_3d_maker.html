@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>ぽこあ3Dドット絵メーカー</title>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f7f9fc; color: #333; margin: 0; padding: 20px; }
+    h1 { font-size: 22px; color: #2c3e50; margin: 0; }
+    .credit-box { font-size: 12px; color: #7f8c8d; background: #fff; padding: 10px 15px; border-left: 4px solid #8e44ad; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin: 8px 0 15px; }
+    .credit-box a { color: #8e44ad; text-decoration: none; font-weight: bold; }
+    
+    /* Layer Panel */
+    #layer-panel { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; border: 2px solid #8e44ad; }
+    #layer-panel h2 { font-size: 15px; color: #8e44ad; margin: 0 0 10px; }
+    #layer-list { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; min-height: 80px; }
+    .layer-item { background: #f8f9fa; border: 2px solid #dee2e6; border-radius: 8px; padding: 8px; width: 130px; cursor: pointer; position: relative; transition: all 0.2s; }
+    .layer-item:hover { border-color: #8e44ad; }
+    .layer-item.active { border-color: #8e44ad; background: #f3e9fd; }
+    .layer-item .layer-num { font-size: 11px; font-weight: bold; color: #8e44ad; margin-bottom: 4px; }
+    .layer-item canvas { width: 120px; height: 60px; image-rendering: pixelated; border: 1px solid #ccc; display: block; background: #eee; }
+    .layer-item .layer-label { font-size: 10px; color: #555; margin-top: 4px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .layer-del-btn { position: absolute; top: 4px; right: 4px; background: #e74c3c; color: white; border: none; border-radius: 50%; width: 18px; height: 18px; font-size: 11px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .layer-add-btn { background: #8e44ad; color: white; border: none; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 14px; font-weight: bold; }
+    .layer-add-btn:hover { background: #7d3c98; }
+    .layer-image-upload { font-size: 11px; color: #666; margin-top: 4px; text-align: center; }
+    .layer-image-upload input { display: none; }
+    .layer-image-upload label { cursor: pointer; color: #8e44ad; text-decoration: underline; }
+    
+    /* Controls */
+    .controls { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 15px; display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap; }
+    .control-group { background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #dee2e6; display: flex; flex-direction: column; gap: 5px; }
+    .control-group-title { font-size: 13px; font-weight: bold; color: #2980b9; margin-bottom: 5px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+    .slider-row { display: flex; align-items: center; gap: 5px; font-size: 12px; margin-top: 2px; }
+    .slider-label { width: 55px; display: inline-block; }
+    .slider-row input[type="range"] { width: 80px; margin: 0; }
+    .slider-val { width: 35px; text-align: right; font-size: 11px; font-weight: bold; color: #e74c3c; }
+    .adj-btn { background-color: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 4px; width: 20px; height: 20px; cursor: pointer; font-weight: bold; display: flex; align-items: center; justify-content: center; padding: 0; }
+    .reset-btn { background-color: #ecf0f1; border: 1px solid #bdc3c7; border-radius: 4px; padding: 2px 8px; cursor: pointer; font-size: 11px; }
+    button.primary-btn { background-color: #3498db; color: white; border: none; border-radius: 4px; padding: 8px 15px; cursor: pointer; font-size: 13px; font-weight: bold; }
+    button.primary-btn:hover { background-color: #2980b9; }
+    
+    /* Main layout */
+    #main-layout { display: flex; gap: 15px; margin-bottom: 15px; }
+    #canvas-wrapper { flex: 1; background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); padding: 15px; overflow: auto; min-height: 300px; max-height: 70vh; position: relative; cursor: grab; }
+    #outCanvas { image-rendering: pixelated; transform-origin: top left; display: block; }
+    #right-panel { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; }
+    #legend-box { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    #legend-box h3 { font-size: 14px; margin: 0 0 10px; color: #2c3e50; }
+    #legend-area { max-height: 45vh; overflow-y: auto; }
+    .legend-item { display: flex; align-items: center; margin-bottom: 8px; font-size: 12px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+    .block-num-badge { background-color: #2c3e50; color: white; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; border-radius: 50%; margin-right: 8px; flex-shrink: 0; }
+    .block-img { width: 24px; height: 24px; image-rendering: pixelated; border: 1px solid #bdc3c7; margin-right: 8px; flex-shrink: 0; }
+    .block-info { flex-grow: 1; }
+    .block-name { font-weight: bold; color: #2c3e50; font-size: 10px; }
+    .block-count { font-size: 11px; color: #e74c3c; font-weight: bold; }
+    #masterListArea { background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); max-height: 35vh; overflow-y: auto; margin-bottom: 15px; }
+    .category-box { margin-bottom: 15px; }
+    .category-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .category-title { font-size: 13px; font-weight: bold; color: #2c3e50; }
+    .category-actions button { padding: 3px 8px; font-size: 11px; background-color: #95a5a6; color: white; border: none; border-radius: 3px; cursor: pointer; margin-left: 4px; }
+    .master-blocks-container { display: flex; flex-wrap: wrap; gap: 8px; }
+    .master-block-item { display: flex; flex-direction: column; align-items: center; width: 60px; text-align: center; background: #fff; border: 1px solid #eee; border-radius: 4px; padding: 4px; }
+    .master-block-item label { cursor: pointer; display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .master-block-img { width: 28px; height: 28px; image-rendering: pixelated; border: 1px solid #ccc; margin-bottom: 3px; }
+    .master-block-name { font-size: 9px; color: #333; word-break: break-all; line-height: 1.2; }
+
+    /* 3D Macro Panel */
+    #macro-panel { background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.15); border: 2px solid #8e44ad; margin-bottom: 20px; }
+    #macro-panel h2 { font-size: 17px; color: #8e44ad; margin: 0 0 15px; }
+    .timing-settings { background: #f8f9fa; padding: 12px; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 15px; }
+    .timing-settings h3 { font-size: 13px; color: #2980b9; margin: 0 0 10px; }
+    .timing-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 12px; }
+    .timing-row label { width: 200px; }
+    .timing-row input[type="number"] { width: 80px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+    .timing-row select { padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+    #macro-result-area { display: none; margin-top: 20px; border-top: 2px dashed #ccc; padding-top: 20px; }
+    #macro-code { width: 100%; height: 400px; font-family: monospace; font-size: 12px; background: #2c3e50; color: #ecf0f1; padding: 15px; box-sizing: border-box; border-radius: 4px; margin-top: 10px; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+    .slot-item { display: flex; align-items: center; gap: 8px; padding: 6px; border: 1px solid #eee; border-radius: 4px; margin-bottom: 4px; font-size: 11px; }
+    .slot-img { width: 24px; height: 24px; image-rendering: pixelated; border: 1px solid #ccc; }
+    #direction-warning { background: #ffeeba; border: 1px solid #ffc107; border-radius: 4px; padding: 8px; font-size: 12px; font-weight: bold; display: none; margin-bottom: 10px; }
+    
+    /* Preview modal */
+    #previewModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+    #previewModal img { max-width: 90vw; max-height: 90vh; image-rendering: pixelated; }
+    #canvasTooltip { position: fixed; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 4px; font-size: 12px; pointer-events: none; display: none; z-index: 999; }
+    
+    /* Layer palette status */
+    #palette-status-bar { background: #fff; padding: 10px 15px; border-radius: 6px; border: 1px solid #dee2e6; margin-bottom: 15px; font-size: 13px; }
+    #series-summary { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header-area">
+    <h1>🏗️ ぽこあ3Dドット絵メーカー</h1>
+    <div class="credit-box">
+        ⚠️ 非公式ファンメイドツール（3D建築対応拡張版）<br>
+        ブロックパレットは <a href="https://hamatipokeyou2-creator.github.io/pocoa_dot_maker/" target="_blank">はまちさん作の2Dツール</a> を元に使用しています。<br>
+        使用時のトラブルについて製作者は責任を負いません。
+    </div>
+</div>
+
+<!-- Layer Manager -->
+<div id="layer-panel">
+    <h2>📐 レイヤー管理（奥行き方向に重なる層）</h2>
+    <div id="layer-list"><!-- layers rendered here --></div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <button class="layer-add-btn" onclick="addLayer()">＋ レイヤーを追加</button>
+        <span style="font-size:12px; color:#7f8c8d;">※各レイヤーに画像をアップロードしてください。レイヤー順＝横方向の順序（手前→奥）</span>
+    </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+    <div class="control-group" style="border-color:#8e44ad; background:#f3e9fd; min-width:240px;">
+        <div class="control-group-title" style="color:#8e44ad;">1. パレット読込（追加ブロック用）</div>
+        <input type="file" id="paletteInput" accept=".json" multiple style="font-size:12px;">
+        <div id="paletteStatus">⏳ 初期パレット読込中...</div>
+        <div style="display:flex; gap:5px; flex-wrap:wrap; margin-top:5px;">
+            <button class="reset-btn" onclick="clearPalette()">パレットリセット</button>
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="control-group-title">2. 現在レイヤーの画像</div>
+        <input type="file" id="imageInput" accept="image/*" style="font-size:12px;" onchange="handleImageUpload(event)">
+        <div id="current-layer-info" style="font-size:11px; color:#7f8c8d;">← 左のレイヤーパネルでレイヤーを選択してください</div>
+    </div>
+    <div class="control-group">
+        <div class="control-group-title">3. サイズ指定（全レイヤー共通）</div>
+        <select id="sizeMode" onchange="updateSizeInputs(); processCurrentLayer();" style="font-size:12px; margin-bottom:5px;">
+            <option value="width">横指定（縦自動）</option>
+            <option value="height">縦指定（横自動）</option>
+            <option value="free">自由</option>
+        </select>
+        <div style="display:flex; gap:5px; align-items:center; font-size:12px;">
+            <span>W:</span><input type="number" id="widthInput" value="32" min="1" max="256" oninput="processCurrentLayer()" style="width:55px; font-size:12px;">
+            <span>H:</span><input type="number" id="heightInput" value="32" min="1" max="256" oninput="processCurrentLayer()" style="width:55px; font-size:12px;">
+        </div>
+    </div>
+    <div class="control-group">
+        <div class="control-group-title">4. 色調補正 <button class="reset-btn" onclick="resetFilters()">リセット</button></div>
+        <div class="slider-row"><span class="slider-label">明度:</span>
+            <button class="adj-btn" onclick="adjustFilter('fltBright',-1)">-</button>
+            <input type="range" id="fltBright" min="50" max="150" value="100" oninput="updateFilters()">
+            <button class="adj-btn" onclick="adjustFilter('fltBright',1)">+</button>
+            <span class="slider-val" id="valBright">100%</span></div>
+        <div class="slider-row"><span class="slider-label">コントラスト:</span>
+            <button class="adj-btn" onclick="adjustFilter('fltContrast',-1)">-</button>
+            <input type="range" id="fltContrast" min="50" max="150" value="100" oninput="updateFilters()">
+            <button class="adj-btn" onclick="adjustFilter('fltContrast',1)">+</button>
+            <span class="slider-val" id="valContrast">100%</span></div>
+        <div class="slider-row"><span class="slider-label">彩度:</span>
+            <button class="adj-btn" onclick="adjustFilter('fltSat',-1)">-</button>
+            <input type="range" id="fltSat" min="0" max="200" value="100" oninput="updateFilters()">
+            <button class="adj-btn" onclick="adjustFilter('fltSat',1)">+</button>
+            <span class="slider-val" id="valSat">100%</span></div>
+        <div class="slider-row"><span class="slider-label">色相:</span>
+            <button class="adj-btn" onclick="adjustFilter('fltHue',-1)">-</button>
+            <input type="range" id="fltHue" min="-180" max="180" value="0" oninput="updateFilters()">
+            <button class="adj-btn" onclick="adjustFilter('fltHue',1)">+</button>
+            <span class="slider-val" id="valHue">0°</span></div>
+        <div class="slider-row"><span class="slider-label">黒点:</span>
+            <button class="adj-btn" onclick="adjustFilter('fltBlackPoint',-1)">-</button>
+            <input type="range" id="fltBlackPoint" min="0" max="128" value="0" oninput="updateFilters()">
+            <button class="adj-btn" onclick="adjustFilter('fltBlackPoint',1)">+</button>
+            <span class="slider-val" id="valBlackPoint">0</span></div>
+    </div>
+    <div class="control-group">
+        <div class="control-group-title">5. ズーム</div>
+        <div class="slider-row">🔎 <input type="range" id="zoomSlider" min="0.2" max="5" step="0.1" value="1" oninput="updateZoom()">
+        <span id="zoomValue">100%</span></div>
+    </div>
+</div>
+
+<!-- Main area -->
+<div id="main-layout">
+    <div id="canvas-wrapper">
+        <div style="font-size:12px; color:#7f8c8d; margin-bottom:8px;" id="canvas-label">現在のレイヤー: なし</div>
+        <canvas id="outCanvas"></canvas>
+    </div>
+    <div id="right-panel">
+        <div id="legend-box">
+            <h3>📊 使用ブロック一覧（現在レイヤー）</h3>
+            <div id="series-summary"></div>
+            <div id="legend-area"><div id="legendList"></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- Master block list -->
+<div id="masterListArea"></div>
+
+<!-- 3D Macro Panel -->
+<div id="macro-panel">
+    <h2>🚀 3D建築マクロ生成</h2>
+    
+    <div class="timing-settings">
+        <h3>⚙️ タイミング設定（要調整）</h3>
+        <div class="timing-row">
+            <label>列間の正味前進時間 (ms)：nextCol()の前進量</label>
+            <input type="number" id="netForwardMs" value="100" min="1" max="2000">
+            <span style="font-size:11px; color:#7f8c8d;">※550ms前-450ms後=100ms</span>
+        </div>
+        <div class="timing-row">
+            <label>レイヤー間の横移動時間 (ms)：1ブロック横移動</label>
+            <input type="number" id="lateralMs" value="400" min="1" max="5000">
+        </div>
+        <div class="timing-row">
+            <label>横移動の方向：</label>
+            <select id="lateralDir">
+                <option value="100">右方向</option>
+                <option value="-100">左方向</option>
+            </select>
+        </div>
+        <div class="timing-row">
+            <label>建築モード：</label>
+            <select id="buildDir">
+                <option value="leftToRight">通常（左→右）</option>
+                <option value="centerOut">🏔️ 中央頂点から左右へ</option>
+            </select>
+        </div>
+        <div style="font-size:11px; color:#e74c3c; margin-top:5px;">
+            ⚠️ 「列間の正味前進時間」と「横移動時間」はゲーム内の実際の移動速度に合わせて調整が必要です。
+        </div>
+    </div>
+    
+    <button class="primary-btn" id="generateBtn" style="background-color:#8e44ad; width:100%; font-size:18px; padding:15px;" onclick="generate3DMacro()">
+        🏗️ 3D建築マクロを生成！
+    </button>
+    
+    <div id="macro-result-area">
+        <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px; flex-wrap:wrap;">
+            <label style="font-size:15px; font-weight:bold;">📋 フェーズ：</label>
+            <select id="phaseSelect" onchange="renderPhaseDisplay(this.value)" style="font-size:16px; padding:5px 10px; border-radius:4px; font-weight:bold; color:#2c3e50; border:2px solid #e67e22;"></select>
+            <span id="phase-time-str" style="font-size:13px; color:#7f8c8d;"></span>
+        </div>
+        
+        <div id="direction-warning">⚠️ このフェーズは右から左へ進みます。キャラクターを反対側に向けてからスタートしてください。</div>
+        
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <button id="copy-btn" class="primary-btn" onclick="copyMacroCode()">📋 コードをコピー</button>
+            <span style="font-size:12px; color:#7f8c8d;">Arduino IDEに貼り付けて書き込んでください</span>
+        </div>
+        
+        <textarea id="macro-code" readonly wrap="off"></textarea>
+        
+        <div style="margin-top:15px;">
+            <b style="color:#2c3e50; font-size:14px;">📦 インベントリ補充リスト</b>
+            <div id="phase-needs-summary" style="background:#ebf5fb; padding:10px; border-radius:6px; border:1px solid #bcd6f0; margin:8px 0;"></div>
+            <div id="macro-inventory-list"></div>
+        </div>
+    </div>
+</div>
+
+<div id="previewModal" onclick="closeModal()"><img id="modalImage" src=""></div>
+<div id="canvasTooltip"></div>
+
+<script>
+const MY_JSON_DATA = [
+
+        {
+  "paletteName": "木のはしら・まんなか",
+  "blocks": [
+    {
+      "name": "原色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB40lEQVR4ATSTC3LbMAxEdyFlerB+ZLsXyCTppO39T5BIRN5SNkcUgcVvAVH1er32v+3Wr9ul3y7Xfrn97ufLpf8jv/26gt2m7S/Y+/az/1y2fr7+6Pdt65fte5db2tXKWTLnUEk6etewNLpVVehW+0kNWL0qXjPGtsYY6sVqAtxE88QZVU2CBzZIagfFgWfvkWKWl1INkNG8JBusjvNE1n011ZuEUW18EIjUWRmgDROLNsBwPMKMU6wjNApjNnoSlazq46yq+7INPLQD255o61O2Z2KF5ewVyswE5gjTTTiUsoYhNpAbG5WXZZmziE0waEaoLmV2zJfh3WnSwHQkq6ajNSvrGCSX0oZhtrSV/Mvaoox4eQaKzLaVdVA9fUbOmV06bYJFYbfNDMBCxbbsRyJpFW3o1K0n5cJUdB2UoQlYiFWha1vykIQLsgueaHlSOaftGRj5scfYw4DOfUIP54Sn36aiSRqGuq/BgDMHSslesGLgEjInGNBbjGbCGZToc1mZNjRPUkN8DzUFc2eOzw8RInUQbhl+pBuyrTCItfkCgDrUIi6iUiRsv2VSPSGRBIk5xGngbltFSLaNnA/Oue/8ZCQT68CvOGVbtZxJ8veFUFpIlcjDNQtEX9d1JmZycpW+AAAA//9pKtHLAAAABklEQVQDAM/tFMpsaSo2AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "白",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACAElEQVR4ATRTCVblMAyTnLYw3P8EMJ99lsecbR78LjaSP+Q1TepFlpU07p/+1v3ppW5vn+v5+a0eXt/qdPpVT6//2v74KP/973p4+FN3dy+9Pr68dczP01MFs1AIxAD2fcekjVfb90O+KkzThMwESazrCiA19WYiSHbAiBnEgT0PLD+uwYkYY3TimueOgYZtEV+AKh6ydaBXT5Kd5D1GYJ5nTJjbVmIDDbOICIg/wogfHx8gKRcwGFjGBCp4GUsnQnsnf7cxx0CMkg8IJ48xFCNDBdz7cRzYCtJkbeAUAEk47sgNnAaOHbA24X6h4Qo7NpiaPsE9G9RJsbDt9gUnvL//b1+IYeBIUUl4zBRlAk4y+jSz+8zzhm0/d5IL3VzdgCSWIMIGC+UVGu7TlfZKbOsFmCSE1MD2k5eTsy3cr1WljpBkI/u79qNpWxOoUtYOxxrc0zFHrggVbeSChJF4drqFuJol5Irz+Yxj20H5STao2fkUapm/AK4XxLdTF+kQmzSDHFgW6aLTMWjJTrJB3MoAnEeMhLTMZkISlLAWERqlI9TSDymfpj/s95UPqDdTUlYjsyC1s0+GpPbVwO7fCU4mCe+jr7LO1X3ncQm2w1VNOQWe+mGctMyBEXMDpjRxju0R8wRS1PSHuYqNRb9xsSf7xqV0KGmgqwqDV4YyiE8AAAD//ycEcUcAAAAGSURBVAMANPZSChA63TIAAAAASUVORK5CYII="
+    },
+    {
+      "name": "赤",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACBElEQVR4ATST71IbMQzEd6UL5alKoTOUdPponVCg00fth+Rs8ZMDzt3ZlnZXf+zEy9NDvf28r+fHu/p7/F4vj/f1hu31x339frqrf9iej3f1h/3p6Vu9Hh+qOSc4p19fK8Q4T2kqdeGr7aBRJdsqbDv+Oaxd1/15TizCk9rrVktAs5TbsmtOoJAVV9cYQxtr27LBOZgR6yClq0ADaiJQOMzME7zg5S0UYYCgJQJMFWSWzAM7iU6QCXHKOjhEsFVORmnsE2CTsTM5QwVgUkrBiSb1xrbQWfUv9Sl1VhvRrxE/hdRRFRH6QnnRkRfhIy30NVQK+tu+BmamOpptyF5liDE2cNMCbF3m0DCvSjnxeq5yWK2ns+yGBjt01OneQI4GxyEVTiVhsgVA7NR4oYZOv8npWKdBYgp+6KtH7Hz3yyANCz4NTM2wlDhk2V4pzwKjujaVZnWSqoMiLfRKxrleCMG92MB3Fh2dTLXlgWvmhe2T6l4pz1qncBOpKK3RdfaFcYZsKw20G0yPbC+bkBrg40wGwtEpr85zNJs+QGTRjTLKGyJiIMUXOvknYvvtfwVD1RFwBbJc++u9t5QcH/pq8S4DCM+EhAh9qHGjaOdG/S3SYtg7sGyry4GxAqTYg7ONKaSwbCNWWl2unTvAsU1A1TE/s6LeQyRHrEWQgn/hTuRSztA7AAAA//9BqGBsAAAABklEQVQDAJQBJsdDXKOdAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACD0lEQVR4ATSTjXITMQyEd+VLeS+mf8DD0LTAMzFMSQeGh2MaW+LThV7OZ1srrVayEzdPp7p9eq77h591/eVPXR+f6+7bqd4//q5Px5e6/vpSt8fvdff5R30Au3881c3xVB8fftU9eIT45VBVaVtnqawxWas016tGWs5NYq5MRfWQtJWuwMMYVk4slxdXrabdxu5sAmNgHUu290Sl3OcZB4WFAgGMw24EUmWoFUmb0qmFmq0OQoZiDCLwR/EUarJgLrB+CyUxRGqt85TtXmoQNBsjdK1FWAmR8mJu0CPUg3qUKRKV6IqmvZdTi1xkBJH7Q5+KveOsoMQ2wRjMIbvlMchjD3WPknQjKAsFqpC6J6zTm8JZKproSRbS2wUZXGRBhnoKGUNKQa10rX1EnMjONgDFfmlQaw9oFcN79gZbRRNVfzBQOpRTvgqhC1YPkpUSBQmEiGbEVTiMfa4FwpFbedlDFkEJhbGqBC6oVJxKEy0kth0/kUXbtsm2Cs2iH8HIZTCHxEAEM4zosy1zkWwCIN8J0SieVdBhq7k4oYQA4+ASGQCePYNNIFJbQch4BI7YCCRcNuvDYFbbS+c3uZR3CSqChIMvAzLhYxMYVj+DCxXUx5Yc1NM1avQaOBcfKdZfrUFzcRQnRIP4c0mbCqX/FSw1a2nOV3DLHQytqMd6p75praoZbXwRR5uI4q5m6h8AAAD///EMgIcAAAAGSURBVAMAetg8tfmCceIAAAAASUVORK5CYII="
+    },
+    {
+      "name": "黄",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACB0lEQVR4ASxTi3ITQQyT7L0y/AxDW/g02gl8RhsK9Echd2shb3KTm5W9lvzKxe/TZ72f7vX6/Kg/pwe9PD3o/ceDzs/3Oj896td3n8avpy86O/an7ZfnT3oz5+3bV0WxsMcE/R4UqgqTQAxAcaA4IcfUMVEi9gsxRiKCuNgf9qPMkARTkKNPQx7gDUYaRCI5kEkcO9GJAkJkJkgiQ2gN1Wb3vnwt2m8Hmoc5d6SBpUHHw0+0EhSGcMBERCFAZ4CFYmHmsG1/BI6SK5nuUZjy0WGIf2Baw0KzLgbhtvqmA7mELyYidgua6ATyPMYI2x4Ga4BWCGcIfkAPTRXIDLc1nTFw5zgogR5cACouYUOYwGV0vznKqgTdivmALeBAbwiukLLHry9AG9YtyJXCl+EKeBsOaW3fdqYCsUWis0vlZEJQqzJHWXFgDUm6SaPQT9st2OdxHHYJ27a5usY2ncBNpslaisK0+vQNfHZQocskEw4EXdU+D2zeSouObpfutRnp/ZJAX7Q9XLI8aZmgWRh3WneRBWFfWO49OjD8T2siSfeF9bTdgM5uHfRW2oZryUyQtM+VlffewVVA6YDUcwisnmveAt2Ahwd/Fy1Ss22hv59odZto1S1xJViE8RGqtH0tPd2qkHCaKzEM/ettwNszBMTw/LVwxF8g58Ka00IELSxnnIcxE43/AwAA//9ayBWFAAAABklEQVQDAAmRSgA9LVGsAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB8ElEQVR4ATSSC24cMQxDSdmTSxWbbVAU2QS9VvO78tpWnjzIYPyTRIqSHZfPWz59vuTl/9+9/vq65fXtXz5+veT1/Xnbfn/c8kLM9e01n95v+bgxr/nn4znDeShXl/Ww14yuzNSUNLLvoTgUs8kZmqtp2vK01pKigomVWsi2YoVWSzkeMIWyomDLsPZHXAOYOc94Zt17ObGuVLLNYNVdq0DsZwz9JPKaO8YmEMYINjEAK6QwzoFZOkai5g5/qsuyp2YuGcLlHbKncGVlawOmdvw6lnb2pVQFV3bbCoEcNdMPzoNyouTJA+fQJkPFAFigChXnJFh87lC2KVP/ojfVl8COoUuzkRVoqVArszaYc6/MBWDvlAq4CsmIwGlPIGODvGcykdmTWsheavZAsiGosmyrbiIEc41VrSojBAGtANvQkVX0CbOKMDLE3atK6MgIG6Y9Tvk2Z0CrnWtlNGfbQo9GPQJUNwedspj5O4UQsJuFvpBwnACKUWKzOUMqFOCErG4oUaNJ/TiLj6A0EFaFFQAPsk0Ybe/rdeCnD1VmUFrY1pyTYKkCuSmV5Gqa+MyollTNNQQhfEp6JD74mFvsplR5JMVw/oEqpbdv8tx7NBXxz6j4KKnEqFbEqR7TmSl1h37yNFtrYtlECJZtKc4k3wAAAP//6ykddQAAAAZJREFUAwCp7DUckMmK3AAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "青緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB/klEQVR4ATSSa3IUMQyEv5ZmQ3FByAM4Cq8Fil9AIJCzsju2aHmJqzQjS3Kr1Xa8fPhYr38d68X9u7p7ONb172PdfP9Qbx6/1vW3t3Xz50vd3R+X3f54X69+fqrbx8//98eKrGAM2CrhXCiDXqc5CAnNAseq/Lft+4na7bv8mf8xHYQOBLmJKsG2EfaHgjrvMGwJktick8TsOHQTMbawC3NOZCznDTSImuThiuF01CpZNcOUM5NzzgtANE1m8zBkIdfKo2k7cKoTyoMjUOsLfViSG4QBTK/nlMTT6s7lLhh0FbumWbQObZHQLP76H3W1USEWix2kZOYFTFNEbLa4jLbl8vtwRNj3XlX0fI3c+rUOeMl8x9YcimbY+THK2nif6QrQlQHw/FOX+RsAWXmDNlCDIyGgGWbKHqRjJuc5gmh0xrwUhfMadPcVN7j8Hrq7M6t7+9Obzsd+po/g57QUHv4GCdaE51f0aE0bA82O+WDr1XybgXz9sdQ9CKktGbVTZtTmepTh2CTRYtDgKqh9dJrwW+CgWElfAGm/ixc1l8jVsuJ22ZyL9kNkphlOmze7X6ARwEm5e9MruaNzT0x6PLxaA2PSGqTfSpRAGUiilW6wBtnwfp88KS7JEejD9DK4JAwgep33fc2qvkJbA7dYw2m5wfLNNArCB1rUs8Q/AAAA///P0g3qAAAABklEQVQDAEWVOxogoK84AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "オレンジ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACEUlEQVR4ATSSC3IUMQxEW7IHjhKSwLnY8LkRkK1QcMidsZqn2cI7W7Z+rVbb+Xb54N/fPvrn50f/+frsHy9Pvl6e/Xp5wPfgv9/v9q/Lk/t//fLkN/JeXz75+vLoLA3ttyU7VGW9i8HZGqP3oVrtL6kCf2hha5W2KFnJT704pEjAaSuS0ChFWHst5dB5TkpGJOfQvizXUHbylqFJ0JmiTAGTdIp6DTrNCCUxiXgdWuSOGVIcyqJDMUgnwExzWGNK67gzUQMlJTATK3OeDIy9PJQRIe8mZAJDwYxmXj7sUDPc8fUu+NlLM0IFwAgrZ+KGATYzhQyD1SQtIQUjpLYBAxBz4MtEw12iIAN9gkQsnSSYqWoXJNUr8iAPseL9ua+1VFWac2pGchNLuTi0cQIhnlgRcSa6VYbhOS/F3cgnO4BC6lpEtA7oxJhCkXPu//teBVwrb7XIEUloKiJ06tRjRYR61nApxXlI4mZaqMzQ0fdNg6Y9iKMyCfdvbgBH3zOPhoeIYFbdpD4X/ohQC2U6lQ+xKXssWe4k8Q56tDE2Aj3X0pig0gniAkMx4NUU1cvYAAEQiOaibgzpQPlS4l46XIoIaEyJ4u5kG7DCtzXKGT99q2iMUBsdrKUNkOTl3biNSBgtang4nZw0Kt8EjHTGrcKZAyoA6Th2gpYMZTp6HeQdkCjuPZh5KTNPBgXXJEcq/QMAAP//iLQ3rQAAAAZJREFUAwDq9l4yUgbkCgAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "薄紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB5UlEQVR4AUSSgXITMQxEd+XLD5Lmc6ClAwyUDgx8bnK2eNI1RXM+2ytppbUdz5df+eXhbz6ff+TXy598/FDz73w6v+bHD98b+4Tv6fySjw+v+Xx5bd/ny0t+O//MELbnVVOpmu0T8y57yKnGbSszZXZrLTKkwH/1UpSDVJzFFTJZtgnYWFfi1HCoLd1T/YrItvCsDtxMQqyuVKTC7CIwVaJj9G5HTpHEHVuQ77dJ4OgErR1XKEKMUAUDqHQFYBWpETFMgjtxe3PEkBb67PJtmuumsko45iFDTKJizUqWBoe4Wn9qX9FSKhgqeZwoYAUF7JKVihRjU9jWnku3xT3USXO6m9VGHeYqxXT/OMhTnLTkJjy8gHFA+m9LGTANIfsgLwk1hCXxEh2oFyIYlG/ALPRX4Jy3llJrOWW7qx4HSg+eyKBtKYQKHUZlsEgwOqt3MSkygmuGoCrXWVSskRu2a61+BwB7Sh0wgpnOIGvy6oCFKVak1UUkEkLStm1K7bINUcjcid5ssAtOP+iGphtN1oVN3dQdzJlqnbS671fIZgcG/8JXTs2kNfaF3Ttgq5iwnXg5tmUkDO4wCbb9nkTnOg1eyizilImrDpqgfjU6ad07KUTa9zdZJRFS8WpnFn7lfEr2Vf8AAAD//zd3oFQAAAAGSURBVAMA7FUgVyA3mUAAAAAASUVORK5CYII="
+    },
+    {
+      "name": "茶",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABqElEQVR4AVySUY4bMQxD+WTkcu0iv8F2zxKkvXY3Y5W0J/moAI9lipYoeerxee3fXz/78fmx1v320X++rn2/XftxM/7rh/2PtcIN756Y7+Vc4qmeaM6pWOtbrUNj+NvGuhSOWeb4262q6SVN82oeUhtUjAR84fSzKVgPDfClUix8p1/3aoyhkKhWrK0me1awkGU1cr23ShcMXkJ1zG/FAhzHIV6JTlJisFsE3ipgY6XTogSQ0rOxJERDsIk5yxYVLx9QAYsEu4UoeD6fHthUfNmqykMdm2eFwOp/etxLwc5Yi2D+mxx/x+xNF/BA7emdWGwFIaX/yJMtalI1CzAi5VI44cLGEq//AZ0W8ukuuS8emYuXbPhlSv4k+NqBdcHxNYcMNz6wXqD98+TZFWPsFoAVBNalJc2DA5SBpgCwEsPe027aKtlgg4DS//kgjkxdLhe9VBhYSbI7//KdoJaTKglkb7SxQ1bw1+sp5RVC8ALUh5+5p5xAli9XuThk0MHI80FJpE0RYxcCElLOcZxgntWmzyGhQbmVEKf3dgqEqwGK5YXKPUyhfwAAAP//JD65IwAAAAZJREFUAwDzciM5lGiRcAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "水色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACDElEQVR4AUSSDU5cMQyEZ5z3FtSjVoLCXgIEoiehgiJOt5vE/ZxFJZB9jn9mxk7i9ukj718+8ubhNY/Pn3nD+fj4lr9e3vLn42ve/f7Me3y3z3/y7uE9j0/vK//48MH5b4ZY2aX0pt67Wtt1kuV5pRihnJJNWse21EdqTgxcVCmarMxURKi1Js1c34gNnzXHUAcliTuNL6hoGvjmnIqMi1Nfq8Bqg6RzJVAYqAMaoqkqmkguGNuohKGcm0NztdBUalJD11c/ZDXZZhMX6hwKACWrFrkBcpYtt4tt2kjaKuAK5DirlJoWSrojV41pOVrslbMcVVRzSLflsy8slVNgbd9UIGWvEISh2ZUhnc+wjKk+h+SpnFZzajZAPJQ5NWhXtBHMZdTsaCXIY5LStjXZVohNwmRQvZ+1R6M4waT/1tYQrcafVDnh1a9Woc21wVAShZqEJfmua2QmiQq3EGiaHZV9aClIghw1dQFiRorDDvMXC10FqgYEQkXlk6rDfg0xVmwH2ZZpo/pczEy8EUtSuqeCVoy6gCy8EQE88M9zV9u8HPXTYGiybNdRaqEDBYn8UlYvMgGpVqrVaEgdPYG75Jezdp0igOJWZnJDlcLLFCrWO2A2WaDEVWgRXqzJC6wAN6jT6VQ4zNNqpcxR81MR2FIpCpYwL+8AacnGwUAHHyZA5r5/Pzac//+L7B8AAAD//yor6bIAAAAGSURBVAMA0NZS5tjW4+4AAAAASUVORK5CYII="
+    },
+    {
+      "name": "ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACBUlEQVR4AUSSXXIUMQyEu6XZDQflJwkchFSFhOIZkkBeOCEFuzMWnzyhmFqvLavVasmK71d39fPDl/r25mP9uL6vr5e39cB6vOT8+qae33+ux3e39XT5qR7e3tTT9V09X91PuzFhDf06/ZEita6rXi0HaZSWtBQ1z5mpMYb6W09nIjZlSMVd1EjZVkSwpG07s8e8sz1Ja6zYxUolxBmhM8ls4hybwiWYREq5/wGwkVXKxbL3VbWpylq3DaLkTFwD5ZygMYYyDjIiB0qOGRMkG9jLGV9gD0jIq8Cjrt02uA6tGVRVKBjzjgv2YmXDFSjs1Qb75OjzXPli2p5AG2LlJCMOEkqgfvFlpqJlB55uyr+sMgHUau/B8gDeJRgxpVyOEpiO64dS0eU2mqBmVYOMK2uA68BSN9DUL76Qea1uaCn+B2lKDuQa9kLBRlPbv9EwvBrVRKWpiFkZ+MPSDHQFJ8k8K0hdHI4K75nEblredga4WhQ8b3YPRDbbAg3ODMiYe7NzUIIXn22RW3Kqk+yqCBPfxXFRZ+2BSiatZQ8Ce7cO1L9LL8pqTJNHLDKD1bZO557vya8ekOquD6YtQoMG2ybN/puk3Kt7sPwWeSQnbDaKkVk1O9z19cgKsiLzkom/iMPPHJjaPC7onwSLtZ33Z8OUagd1trYPJGjZptHmYnGIngIr/QUAAP//+9P1TAAAAAZJREFUAwCQHEFrLRwWSgAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "黄緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACFUlEQVR4ATSSa3ITQQyEW9La3CuEPC7EH4LLFCcIKQMpuCZV2Lsj8WkcpjxeTUvdesz4p58Pdfz9UE/Pt3V8vavjt7s6/Lirz98/1Mfnmzr8uq/Dy219ebkn5qa+nh7r6fWxDifw0/tyK+n8d2iEaVRoe8dOqcJlho2/fZeQcln0J1cRTXwRL3lGqarkLlZe7ci3M6QVzHC9/SJCZgBZE/GqIV9KSQUtlAlhuoTYUJDArK4k8PbbJs5XIfdyGXuh/HUdokqcphxDsVvUBHdHrNTLzORU2MnIrTkDkpLJIO8JDElOeuffwENjQHbT/2UIzqr4es9gVM6gzE1giDAmsPY1qStwtUDid630X2UyH/IOoH1dLpc2mXApzRW2KNS21GXOkqsQL+1mNSlbQgyxZGbqLN2vlFpMVLRiBrYrIQ5mgtIUEKtjvQRvGKDNXoMrEmvoinVLHJVbycwYthDG27aFzkMI0HRZEtfbG0BwyPZAbhBKPWROU2RZvM1p7/YpF2TfOWCTU/MqZfNsXK95C6d66gXcr4Qbp5Scwr5ehpZdEGBzR/RXDNAQkZxSI3bTbsEgV/E6ncrDQr6Pvba1VNtgfJQ+UpUOIdUzGSra4J9BioiSy5h+UU7mkGe3EAQR6KjC5OdsaTtvuk7a5ZAyJV61RJJuCWrLgbYy73Lj8VRy+9hibbXNthy9fgdA6m9fYW8r1z8AAAD//6IlJgwAAAAGSURBVAMA60ZGjm8oGoEAAAAASUVORK5CYII="
+    },
+    {
+      "name": "灰色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACAklEQVR4AURSi3ITMQzclX2dfDflkSY0A7QN8KNMkztb7OqYwRPHlqV9WOe4fj3lz+dzfnt6zOvlnK+nY75djvlyPubl44f8pdyP05f8/vQ5X06f8vX5MX+fT/mmuqswQWy4r+/gDGAmPHJNNIURgcwBYiIS0BbYuhDKt8R926CyDmagijEATkQnWmvwGDnRY9+T9JGYEsJWjYkFBoIJ/ZQUp5xkKlZ5jwUkURYUjzHkZ+xniiPnpgVgC6yrEqIkKbsT/aHVFaBR5Fr9awzMOYskIjpskyQU1ITGRAqsScCqYMO0q4gCqkRrQ5As67YMmWu6u8FWDNB16L3Dir2xBCrf5ECtCYOQYh/aTWC9awOpqnn/HSkh9W3sfWkULDsqb2VvKHW5gx14Qo1cxyYPIi98IqQ4/aVC1epBhEhSLqfAJgLELHXbHVLLqcLc4FjHskhdN6o3guD9z00IKRVYrFWkd0ASD4elQudMYHeUg/yXD/XjcDggSGJZFoTM+irruu5AqTveH1GgqbmQGNGqdugKJBH3bUULlC02FBmpBNUwrdscIHUVAaBBvRMtIglYLKw+JnSlhGrrAdm2i0gi5N1XmPUuiOqL9j6DRthWSDlAtAAMTjNK43677TGApXX9K6+v4HzzlSRbPXBm+I3LZhHom/vM07Fd2oFjT5J6vaPI/wIAAP//Dy9nbAAAAAZJREFUAwDdVjx+ziN97AAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABuklEQVR4AUSSa3LbMAyE9wPdni92pz86rie9RR9Jpj13bQnZpS2FFrwkXguArMvptZ9P//r56afxrc9PL/3969/+dvzTl+Pvvpze+hLd8WXixf5n685fXvvH8VeXtPr3XzdhXATS6EXV1ndLajWr2rrgut5E3zTUWoT97LSuqwBlAWrrxvg0MYGxRDZ7MDFJX4Cqak8grxgN81sTSfjmUZsNYpAq6jACuzEJU2owdiAwZdNpttVO4HJjATRq5pulAxOHHOz+5RUig4BdSozopqxOFoY4RgAtmbMxDoDGASm87q0L7zx7eS3LMhnTI4+kgCgbH59jFL8ccdzwXVQOkVH7VsBMtlURe6Q8dixJFFuk8hdj9/Ue6LLuZ3t64+cwk3m7YxI1cjVXFaBkhPu9xxiWzCJBNZ+LZnKwrx+QHutw+KxyBnfiQToS7OCXluwPH8NQhgt8VFClkKT62cLhUMpNhXX4Bdq8M8qMcYwAZixl0NJqn/ZTlnS9LvJJWXHMmw/mjB3vqL0CwO7Mc8VY5RaysbRLSTAwmcxhrUTKhhkERkppv5AmR+43w7SHNfcvpQI7W7Rb7yHJ+R0AAP//vQV9aAAAAAZJREFUAwC5UxSmqfkrHwAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "紺",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB8klEQVR4ASyTCVYcMQxEq+Se5FLJA7JcgBlOFgjbSYG2xJcbT7utpVTW0hPXd0/V+/ftv7q5PNfV7X39vTzUj/NjXSP/vHtd5835oXr/uvyvq/PLwvw531e4pJq7qoq9S/6mKcse6hXZ2lBUysaOLk+lo92KzMMxvS1AO0shRyiqdwEekGPtYMLwysh9adjGRBYckaSDliqhEviu3EIVZg9AgRe9jgxsC0sqloBDH8oOLQL2Kfm7NItMiO0SndgoU4TpsEUBTrYgsbilb8dfUVJYEgo1Bz2Y+MonbMeT9CHKItYK2G0jh/bkJKBrFCshDnpinZCsLIw8pVC4FWqyDf9UFzKQQkYOJcTBXJosv06NWE1VZxAwt7NyJ2SIi1UxJNFKlPaZE4MWNooJkKGrTfTn6/Ye2YSC7HEk4WQEaQfZTYgZbBMe5EWeKdqUCNK01E4ugLXBVoyjYcV0bABqjJVx0uaQyBT8tm7DJwGai05rDYdmhlzUDHjIMLQuJR/g0USCbOMiE0bSINva6oPgN4jaPleAFDykbsm2RpfYafOtaPArtYc37DkA0KjuwYY9yabogVgUwVsq4LEkXk3UYNsqzdUPzOtMkOb2xthITMXmhJgeIPQoowNT5k/SRKqTipEUte9Mob0RG7ZUEyUZWalPAAAA//8dpcxFAAAABklEQVQDAAFmLtovhYl/AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "黒",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABrklEQVR4AWxTbXbbMAwDKG9XXJvG2f3PMEsYQMWvf8oXihQJ8ctMvT5P/X28dH4+9Hycenycetn2/POl8+Op8+u1ZXRz+4yLzLuaENZamBK4hDEGJggevyDbwiRbh6nvxkUuXagS/EAgB0g62NWyqgyH7wuLaBtCXN+6CqUixoqCpqqjZapqxQfpCJb5rZkTzrwTdAU8EnV0NrV/ueTZILqyNvkg2bZUJLcHU11aWDhAykzQxtsZSbKD2dwJSIKMTbYLRebyL/5m+RwwyINaLJBE1W+EvueCtgOFbqGwhyWPk9aTOXxXBVydLdXa7Ud5WOAxUKSfqKCiL4c/Kjr6nQ2mHYwYIEjC6bodaforeBgZSj7nDTSiAV4P74ZBMbw5X0dKEIdZQMUeA8mozakmQe+lSuB2+CA3jiTiL3IbYMqjeV1d6i7X2bNQqu7bEE9J3cac09e1K0ikZAmn98isuAxKyUZ2S5E3k+xEtVhYU6CHQA5PO5GxndxDhUkVn3AY7ytIGqs9RJIY/hORbAfe9FP2VPd2t+ghgsLl3unluQGRJDGqOmh5Y9Me3nTr/wEAAP//b6FHMgAAAAZJREFUAwD8IQtnc3/DlgAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "薄青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB80lEQVR4AUxTW24bMQycoXYXvnABx/lvkTT57yMJ2mt6JTEz3MSIsLQkcjh8iI67p9c8P7/l+ccf7f/y/PA3Lz8tr/nt+6+8f/6fd48vJbb5fP/0lpeHl7w8/s4IELl3JIGWE1hWzKmdDVFW3BYTZUuBSWIiEZmJKcWyLAXk6HLc0FoDSYyx124cSbSA7ICDWBfiwCKwSXJ2MBbxAjb2PgUOySKJ0o2etbOJCSIDJ4hezH3IGASp9FTG6XSCiaFkha0vVFZCzjPhkoIZMh8RbBxjQCEgCvR+BamTyOw93CMFME5VAz6nLE69HHXeosG6KadQOSTRXKLu67rCq3c1Xb2jsgmqCyk612yB8jHIQrIysN5yvR4ZmZAkQoQqBopAeJFUN4gWKksRM4eqUV8yi2jbNnxdVLlCHgBHsNH1TTkAMomEPHrghu37rr7opaQzfnS9EJRyR6sIlZrngANNc2GyqndM8RFNvbjNSwLLmgiSsNKMpKOhyNxEvWHZhIKXMaXXxWdtxySumoUWwFVvG6pf4eTDqh/qA3mcSR7kDKjvMJkyaLju47iU86zxFbUDSEL3AROXgzANWUMEsSguEKvGtxon/MeXk0cGH3eSN5LP9KElgqlNJKG0RJL6PzgaqTi6Q47LthbZ1KsUWD+xyI6JdwAAAP//Q753EgAAAAZJREFUAwCPdkFJtUZekQAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "薄ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB1klEQVR4AURTCZIUMQyTnD4+TtUus9cnKG74HjDpxEhuZkiVO44PWXbS8e3pNX8+veWnh0t+f37Lz48vaZvlw7uHu+/L+2f5ntL7j8trfr285MfHS0Zm4ne/wmvOidaIkdpBkNKRiAg4zjFjdG9wLNHsC3g5qIEVGNq5NJtL7CNZemsr0AITo0DiOA6s0YTFMjiKM2Fx1UiUDi2fXdmyhIEGYtu2quqKfQ60JjCJg/d9V5oK6lyKPiRBtsrBJGL26R1eoV41hjofmoNBSMLAJB1SiSGfDwGeM3Dg7MfpDNSOf0tFYFZFe1mcgDFSIraxiQFnhbpiKfq4b4MuDEQscLKl9/MGmm7KbJddfgeu66pAHaqFE9AJ13EAYxYASSxiYHvG2c48BsIAN2TrpuvdQlL0WS2RLNq2Q6uA9IaCpEah3nxd0h1gkNsN/Dl6MVAO3JJ9pHIkobeikQHrFvaDPKv44PfR+8C+7D6ePr1KV244WeWMswVHeNokRbnBy0NyNQORvLOwfQjITPv1F6oFo3ryJOGh3W6E1NloEoM5SSpI2YNip+GPMe7TtfMWZN3AJGuIrmyb/dfr/58vjOyH4apOMD2D3oL1v1ZbtjmZJLa2gAkcTPwFAAD//4gA6lkAAAAGSURBVAMA+2JUC+VTpF4AAAAASUVORK5CYII="
+    }
+  ]
+},
+    // ↓ 2つ目のデータ ↓ （例: その他① の { ... } をまるごとペースト）
+    {
+  "paletteName": "フカフカじゅうたん",
+  "blocks": [
+    {
+      "name": "原色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABv0lEQVR4AVRT0XLbMAwDKNnZfi/tdvusvXRbbx+6JZbFAnSda3VmRJEEKJJKLM+v2Z9eEhLvy/PvtLTrS67f/jzEtvVJvuuv/Prjb16+v+Z6/ZkRo4MMrNEAEOdqrYE8znMCEYHoTQoxxsCUMfsFAe7YiQpmC3iRLACCh13nzCygiaHls6AKkbOlLP5mFsDslnHfUIGK8e6Qfd+9VRwQiP8fQOXRD8m64pmNzCKKiHeggt6/+LJeykkeoDMTSTibSWwj+QlsMsREcBtF4CvbSLLOBvlsEiez7hiS1Z/SAZXQNvTeocs9Mjjr0dAoMgdnahQC1ATGXiSR9N6ru9KLINVtAyyunawgEaH6QhLQdCoOUnPSLNi2rQKgRbLIpD5sLuEUl2UCSzCODrsMksYUyCWlrkWyyMjPvSkwEopj3WDMY74Gtbaglsj9+mxzVicxECrB/sENsWxHbUvrqjOVLTU+GR2hNwILpuyEXq+sypmBavTUU549yjh1HSn1uVYrRyOPEqw7e9PE7LMe+m/EuA+xJwK0vcTBJCuL9YiuMi2B7f5POmpy5XvUBRTA2X09Z5AJJHG73crns31nP3x+AwAA///IlG2EAAAABklEQVQDAHL8IFrVsBWFAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "白",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB6klEQVR4AUyTCW7cMAxFSUq2Zwa+/6GadrY0KdBrBJ3Ftszy0QkQAYQsLp+fX7Kdjxc/nl79cn338+XNfx2vfjr/9uvrn9yJYS8/z5lH/O39b+b/eDm5rSpiZtJaE5aq5rmUErvINE2xm3Ce5zn3ZVkyv9Yq1nWdqKqwAAGMxHVdo7DKOB6Es7tL15XI9SwmngB0eD6fEdhASKQbYHTCOKtucQppRiO+DZTD4SDsBPq+CgFVTdAggjt9ZjVG6JIBTppYLZoUoVljJgpUv4pX6fs+jVFhB6Pdbpfgqi62TE0IgFg+wUBW1fA3ud/v2YD4d2MsdxXTYpG4CTPPLYQz2ZisImJ5Ziw6m1nSRzeRVdK3usdcGgp3SQtkAuhAAfZ4PAJMMs4Zo9l+vxeDPpRB5ft2uyWYxCIRH4zYsWEYciRVzT0ANGjWMBNoIVprc3Tz9CGUqkrtJEZtQXuSLxFhaqVsYtFlm1lC9V1cm4RtjylvqPQJCAuM4mHoxNrsGaBrrRZFFC6pCzrEKZhZdF5yr7WPnEUoZmyz4hGQoFzi3ZO0BlWNJAnFZ2GF+PHt4efKW8TWNB6gPeNnIYnuGLfg3gJwYwZVEtGCET8+/iXjaVoCMHIQjZkwVQUrjUJVzWQeE3FsHEdhoRna/AcAAP//gdqKuAAAAAZJREFUAwCbe3NFhiMVUAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "赤",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB+klEQVR4ATxSUVYUQQysSk/PyOFE4PmhgHpJUHh6MHenp2NVFpxH6E4lqaQrG78ebvLl8TafvnzM1293+fP+Uz5/vc7Xh9t8ub/Jp0fdhRt71v3l/jr/fL/L3z8+p2uDJPy11jDGwORERCAFHzkhAHNOkAQngWg4j6NyFURkJEYO+IxlMVDJmYkm0q33Ou2vS6+YG9oXG8Ls7lzgcaC6q5jk/8JDOPSd51HTmJikECAaGq7WK/1v8gImIFlBk9vcrWkazFETuGFrhIk1wdBlL+YlgPP5XMUuIImuJ0iSipMNJJEtVJO6JySiwYZZZYCZIW+Ms4oGTqeTIoHMQwUUNtEZymuIWGSBCioiZaeApQqWZRE0VZRKJpZlrZMJDG3FhLu0UTmwbRs+rF3jNgSIfXdXT9PkN/l72YFE31YRNTUb2HpHWCCL8ve46LBr9+5ugUjiIETcNWXWRKf9QqYxyw8n2nJkJVErDKlms4A8pqagnhC1Kcc/rCvQoqaIbesiC3VpFwI/EoBJayP6oZ3HLsR/E1TcAuNAPT3GuIDed9ebnGYj+UbIGtWYjSS84t6bmuzQGinlo5KtBd4+a/NuLni/+/R0bmjxS0Qn2ByMWIospIN9krCo5jX2fu4S0w3DgC8+Sal+nGoidyGpN7NW6GIXkawGq4R0zj8AAAD//9uTflIAAAAGSURBVAMAmKVeRTOr+GsAAAAASUVORK5CYII="
+    },
+    {
+      "name": "青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABlElEQVR4AUyTC07DQBBDx5MmbXo4BIhzIUCcCwHiLv0lWfY53aqVRvOJ7fFuk3x8+y7E88dveXr/cf3y+ee6zcgtHl6/CjUcIruuCyLqLzNjmqY4Ho8hKUopdRrOzMs0x2azufXUlZOxLIuHoLfbrUHUCNyLD+PA2AEZXgI6n89RlSzkYXUC6n5GP8+zcZJovTQhsJXcANSQQbGAHidSZxI4HJCNowAICDeSQpId7fd718wRAicpTqeTj5q6qrINJ4hIK5n6cDgEmZBkB9Q44GJ9B9iQFDjp+96bpbVHGDCZkFYRSRHzEr4DFLGKRQIhMsJYbvaZSYrL5eJl3dCHHSDAmdgAGSJgyMxaT6aX5GPxPCHw4qBaIvyAYyDarEMchsEvGefmrirUR81xHE0CUG/UddsuySB6CJL8XFrnLEis4wJlNrVMjSsyVuP6Yzu9JP8jiVW2owYZHAC28oxoIlK9wPqtgAOz2+14M9NKDAAihAjBrAnR+1n9wKR1O3eX2JTW/xwwxyETCEBsmc3MccwySfEPAAD//9VFCfYAAAAGSURBVAMA0PxxiY6oK3AAAAAASUVORK5CYII="
+    },
+    {
+      "name": "黄",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACJUlEQVR4AVRSW44UMQwsO0l3z8BZQELaEXBOtB+wCDjF8gHL41A703mZsgdWoqUoSduuKpejDx9u7Pvdjf3+8jb2h48n+/X5jd2/e2E/7l7bt/cn+/npxPMp4l9vX8V+f/sydhURKAStNYgI5pyYveF4PGJdCwQdmII+R8Q0Mc6cUgr8U6igNoMicQlEjMnG5A4zQ84LzxOqCoae7iIScRXhAS3YnN1RRSSKar3E7kAeW9fVw0gpRbGTadsvWHLBvu9XFknANCpJmLAocICSFjiInx3A1STJXqMYowWi+wAWm3jdhBcdDitlK9qo9GlH2ys9oh8Er/RKUyrQnMhoWJYcO7t1BK6Jx8cLCdyLTKAFqeT/lLk3CNagZamQXsWlofcJqEES0OvOwoHDuiBrijW7QWt1aQ1EieV927hOwE3yXm1MiC5Yy4ZaOxUN9EFgVU6OZT5zlxImzYSUEvttTK6UncNgN9k98nfgRvbeI6b73iKhtcH+E+F28J1EUEQC5HA44Pnzgt4r9kuD+7BtG8oi0G1b4K8qZyXrDpXMO4HoQ84ZQIaIoLdJkxfGCgkmpvUwWJkRPfnuD8W9HGMgicZo3YeUhWeCUPblTCBOzawFmYoIlIRupi83TUQC1PiUHaBVg3/u07oJ3KvZBc+OG9SLBQneUy4hKBKE40s000HMBtu4gsQdA660cVpqdP3fT0fG38/bELmy+S+lyvP5TEZ9Wp7/BwAA///nQng6AAAABklEQVQDADbfb9iPmpOQAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB80lEQVR4AVRSi24UMQyccbJ7d/2pAqXiHwAdj8/j1Qo+DdF77CZhxtJWarTWJrE9Ho8Tt4/H8er7h3H36/jC3v3+Ou5/Hsfbh0/jzcMxY17/+Dhuv70fd3++jPvHzxkfYwxsRjL35/MZ1+sVKAEvDm1LAYKo8wQsA5fLBSSRABGRia01eH9zc4OihEE8L58LAwFf9vR3DEStFU607Xa7BFrXNf8bM6PY33uHzWcD+h8OPhwOsJmWA8yCZAKTBEk4jkVMiQR38mgdUdST0Z1sNkZ2sIHasgJBdFE1u6lUuAWSiFA7Nic7wYkOdKKBSCYr9AGL6DgbtJxskUkiWhtwMrQKha/LzekE67D517VL/SXbqXXGWAdiFi1Xpso4cVkWTNOEED1h5t8MbbWGfAVevUtoncOUXeV0WjKYZDJydZIppFuyOdbA298xQSqBgXmu0JRQNVYLSjKpQisDxYiUoApyS210VD2UkD8/I5eiACk+7dSfXijJHKEDXlQVGCRu6xeLuORc3f/aWypup8Az2cCe/wayVbdOBTNiXw4ZaEdRKyThJU3RRdd7qJr3oRcx7Sr8gCx2PUjs0/qEdJpWEK68tDWFJHVWK2WKPKNOOP89IWrJnHxnruwqnoTpej/Ps39pvrv8e8q9R+kX6bv9fp93/wEAAP//IteJxwAAAAZJREFUAwBdoU8kHF08XQAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "青緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABzElEQVR4AUyT3Y7TQAyFz3EmaVUkXhOEYOGC1wEhFrjgEgmWnwteqmrTv8zO5zTVRnXtsY+PfyaJu4f7+ub3fX3181N9+/dr2pzf//9e7/58SXn371t9/fA55cWPD5UY2Je/PtawLdvqui51RKRWe/Adj8dmSfhrrdpsNjqdTsKO0imqlUHbulwuCZ6m6WaTcD6f81xKyTjJSNSiIDiOY1YlkQAobKpCiqYbYggxMBnru5JtwQ4QDXgBkGBbJGGjifV9r+iqYmgGMyEkwgposQGSENfd4McHxrZiPM3tww6IgNqDBsx4xJorf/iXc6uvKGW4bZWNQwISTVe2tV6vcaXgW0jG3dhuoV3NarUSCcwPO3I4HMSZLvb7fe6As+0kAvN882y+BTzcBsxUWMjws5NhGDBvV4kPLDpaAxnkz7ZYEGRUgMi+vh9dAEmhK4yDjoq+LzpezploO0dhJAiQiBDjdJpbty17lhLtKqm27oeckQRaO9dJbq8pLao9fbvqpjJxaOOAYx+8xkE7iwMQElXyVJMUEuJPNV1RuDSyfJUJ6voQpAuWCTlurtF2jrfdbvNDWjBhOx32PBfVbN++Tkh2u10mk7Tsh0KS9AgAAP//7iPeFAAAAAZJREFUAwBBXWHYBUDp1QAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "オレンジ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACCElEQVR4ATxSC24VMQycsffzAPUqlfoRB0SIVohjIUQrxHHat2+TmLGXNqqbvPF4PHHWnh7u4ve32/j55TqeH+/j6eFGcVfn58fb2v98v49fX6+FZ+4m/v74HIllrZkB7sSyTOh9h9kEYIAM7UDbB8YY4rjyHRFEa01xcEw5Ea0SJEXeVcz6DQTWk1exSGqyYJqmypEsngQGXl5eBEYRySRE8jHPc5GyI8lycJxD+JCLBlvXCVdXVyJ7FeVV8hDR5SaKlFeIiITV5BAy82pqrXXs+4bL5VKEpvuRaQ/C2rttkspbFaWzFFyWBZYHkhqeIVfvPTcFhQHn87mKoJUDTzc6Kmd1JSMpq6MixdyPq2QXkrori5w50iEIuXpv2M79cLCua2JFJFkdW9uFRWHZNcOdOJ0+VZ4a9oeP8yGwbVs5SFLOILvl2eQ5d5ISg2a1ay4XvL6+vg+3ZpAFJGWPRZwmh/sEVxSg7+HY8/+Qi5OcQU11hXnOdx96xum/QIhFpKuugZIuy9BrzPURKVndSUrE8gpQcgVpEAazLEjBWR2GMJb1fd8llOIBd5OYI5d1TTNiqDCJLbEK0lXYFZsaLCo2xQAttIfwJtczJDBUQL3pADUCM4oARahLFuXucDWkii9bEz5hdJPDgJGqksTbX07dzCTYJcjqni+TeNdMXEr5Vc/rkMDAPwAAAP//jvhUSAAAAAZJREFUAwDT5GBWy52aAwAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "薄紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABkUlEQVR4ATzSR64bQQwEUFYrQbqmF4538sJ54Xg4QXk8j8L8Bogmm8VikTPjy9vf0+c3v6ZPr39OfPb13Z9pMbnvH/415tv7v9PHVz8mMYMd86n1el2r1ar49/u9Ho9HTdNUzhLzz+dzbbfb8na5XGqz2dSQAFbER+ZG5t7v902WpA6HQzfzLq9uJKnT6dTdkXgEYFQtcZK6Xq91u91eCClqAswKEFCw3KQqEMsjZEjd3gZW8wCar1nH6D0oRMiAFXozu9sYg5OklwgAnKSl8jWgRK7m416sCRYpiCT6cVawdEnS255re3Z5hEn6a8zxqN1u19tNUslzWUBzspdrPDEcXyPWeZ3NbQ98CaqSdEcjiBmMseBeFClgSbz18pJ0Z0Ws5pM887CU6M4fAvJ8gSQ9giRV5CZPJUmaVFHNRw0lA0ixwOIA+KTyZ2wvi69oaehW178ymQrMmKQXqgA5NXJI4ZadLPfAyoB1S9L/AJ8ioyBI4qmOx2PvSQ1rBbphd+uUpKhRQSpg8tzF8tsjh/8PAAD//8+okqEAAAAGSURBVAMAlnF2LDDHZeIAAAAASUVORK5CYII="
+    },
+    {
+      "name": "茶",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACGElEQVR4ATxS7W7UQAwcezfJEe4BURFVEX8RokU8DUItiFe8u3zsBzO+a1eJkvXHeDy2P3+/73+eHvqvrx/4ve+6vzx97L+/3fH+EPd/P7/058e7/vL4KeL+/vgcPuW5pwZYwTiO0Om9ozfDMCak3NBaQe8V6BmlNBwOM2pbYWZ8OzynEQxXLjoYSLBaCUKgUmoAbfuCcXJM0wSzq28vF+TB4ZfLBefzGcMwBIi7I+fMqh0pJTJokG3fdzIoqLWGXb5t2+Dv5gnz+xGti2qHIQFkoSQFg0fBaitnjzjDgOQT23J4KSWQVUGBrdFO+o0/xkAzCwbDwAQAbiq2RY6KuLGimUFHABK1UQo5W9+iFYELsAdwCZBSNqzryn8mh5PKL5dNOEjZkNg/bkfi1bpT/T3s27ZAU5vnGV7bHupqApmqmlkgq6pYGBmWsseE3DJkB5wtNCzLAld1iaVg8Mh4OBz4BwaVSDAzmFlooQmB521qZnSyikAE9uowo90Qe1C4D0osdYNiUtYu1Cvoq0M9iUW8pCrBUsqQoEOeItHMYg+ck9CyqWiMUVUDmcIpsXEnzOya5B17WYHukLDyaTrct5suDKQ3ggt3woy82aMeLY/AxUDVZDsejzFaAU3TyClwNWttgW5m0Zdod82cTLSuSWPlK5DzaUFyrj0ZbWuF59veC93MAt28xVc20T6dTnFXm9JK4NJK/v8AAAD//ynpiJYAAAAGSURBVAMAB+xr2xxFwyMAAAAASUVORK5CYII="
+    },
+    {
+      "name": "水色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACMElEQVR4AUxTW24UQQwsu6fnkVwcRBIhJDgEj5AgAeeIIAQ+OMY+Znq6myrnh5G8u9O2y1XlXn9999SvPv7ob7//7Te3j/3683O8+8b3+4d+c//Ur+9+9RcfHvrVp9/95fvH/uYr48uf/ur2Z/e9N1TG+XhCSgloHevpjNPphOwLyrZiMEceBrS6wq2irI7jesbAeleTdaD3jlorUh4wLTNYiX3fkSzF9+AJ4zxFjkdIKcG9w9WkKKVg4BQBKcwMenSmYoGpRrUKZ35nj6vo8vISirVsaHuNkBQB/R8CamSqs2DdHL6MY1Dc9oIpj6TFQw/ckNRaC7oj6xyGxBjTAKdUSw7f2h4AF/MCMwsvRFsezBdLyBJ98FFDBb1i8PV5mHQNYw7XNU2J4/EYSW1DenPOwWY9F25IMjsaDa91g08pI5lDzSqWvnnmFrhOaRYbeVPqjmnOmJcRRvd7bUjDRAnUvq5rTHB3bNsWMgQmUDEUoICUN7OQrHfl3RKNGFLoV/M0TVFgZlDOzLCdVzjBBSbgTBPFqLeic3qrJCkmXg4zw7IssgLMxAYEVCrviSfsWwEIoDVuW4U3fnSuSsXdmWRro8vdDZSJuOo0bEpjyEwaggatUb/JzGKSDwmZd1+6RBN89HuhoaIseWIycbWVA1vZaegCl65uiEukBiJCt1F/IPSKwv+DzowDqA7HwwEJ9IXmx1XO0xiua32ipG/t3cwgQMWBTSQUG5L7qtFmlPsHAAD//9pQOv8AAAAGSURBVAMAX+GLKRfpF+EAAAAASUVORK5CYII="
+    },
+    {
+      "name": "ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACGElEQVR4ATxT7W4UMQyccbLZ6/24Z+ajBVHxJKhqi0D9j4C2AiEe5nTd7009vl4jZZM49ng8ztrjxW29f39df59f17+X3+vDh9v659O3+u/zXX38+LU+nN/E+uvtVb2/uKk/313V/5d3Yfvx5ku1SiDnDDPDMs1gBbD6x2e2hL7vobPlBANx1m4wTCPWeUHJDUxO67p6lPv5qv2yLNBaa8Vut8M8z3FPErIpmWZKCTaOI6ZpOjLwQF3IWyCllABq2zbuT6AnQLGz7eYM2+0WTcpomgapyUiOTBLDMEBACpjHYxIxUNkkkUsDY7JgMDpNM4uMCpIuAhAL7bWKmQDapgSjTWlhcpLRI0EyhFQGzVIKDocDlrr69RqJxE6lKNk4O6sT6rwuQVnZ5CQWmipJGQWYc+M+3oEXsUO7FTXamFKGMoqN6lVLc85QlyT03E9Iydw3QUPgpWSYBBKSpi7kLDE1SQZ1gWYHIxlCqwSSoYORbmwLkq8nx9OKl6FzalKAKVhgk7e86waYDqIr+mYWQpJE13WYFn9AxshE0unnVxBze9uUYwkSSt0gGQDwkfwtOFyc6QqqVAmdvffaK7jWBaZa5SgmaovHRts8BofuCRLUskHB8P+jLisU0w29i5r8KffDa38NDLpypP9P6gB86ClrT0ftDh2kg63EOM5HBmEwi2C1x2PiB1ImMdvv95FNZZVSQDLO0uwZAAD///UPSOkAAAAGSURBVAMANSZr/H9VVfQAAAAASUVORK5CYII="
+    },
+    {
+      "name": "黄緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACAUlEQVR4ATxSi27UQAyc8W5y1+oQX4doacV3obaA+A3KteKjuEdyiZkxKis58foxHnsdD/vbtHx5/pg/fn/Op1+3+fR6l48vN/rf5uP+Pr+/3ufDzw9le3y+yW8vd/l1/ymtxziO6L2jtYZpuQAtEBFobUCTTPMJl1wRwwgggBZYCczrAusxz7McAEkYZF1XZCZ8IgJXV1flI4khhgK3z7EkEQ4+Ho+wXC5iAMAgFqn/dd/tXxZVtkNC0oCB3W6H97t3aKqw3W4LDDpOcoHWiGLaUGwMQhL+h4OmacJpnpBYymgQ6DjJVF151KwMJjNss64OPRUUKknRvVSltwAnHg4HDXmsGN+dSBI+mYTmFEpcS8gGJ1ugMwwDtsMoDeUP9ipg1qE5G7Ba8DOSWcl2VgZW2KYKlXw6ndCHwPX1db2Sn7L3QDjZwzA1J5OEkUkKgP+w9N1sNgVkn+Ms0ARqD+qSvZANpngltxIvDEm4HZLFEjoumKIRw9B0XYuee+8MLQdwPp+LiVtQQIF7qaybtWOjiYMn2ftYAa7iAMhhnWTZvWTLMsPPTa2wBZpRaw1hyiThNhyYQWEEKJTDn1PZPThtOPKy1K5Avbuw77XKhSwQkqI91TIlZowbAalPv0YnYPDznGAXRQByoZ7RVCxm4Wm7Rw/J+lsrnoXtvjvO8Za/AAAA//8k4tc4AAAABklEQVQDABhHVp6tTMvKAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "灰色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABsUlEQVR4ATySiU4DMQxEPe5dVer/fwAgoIVyCBDl+Koe291uyHNII0WxPZ6x48Q/H2/T19N9+nlZp+/nVcLfbu7S7+vDxcb/WN+k99V12m5WOX8d59v9VXJJxjqfz5ZSsuFwiGtt25okOx6P1vd92IPBINtd7LZtbDQamUMiARYnRGLuHmKz2SyEwRAgbnlxRh4ApN1uZ13XRSUANhXAIbLppnZ6ESBpOp3acrm08Xhsk8nEDodDVG2aJteyEKUIeCXa/4oZUBl1krARkWR0BYE4RegCnzmx6dIBaasCBAGJUeR0OsWwiNdcSXFdus88N5S5K0lSeZUM2Hw+j/YlxZUkGYIISUUkrkAyFaVCRgifOFWwIRKvonRH4RAAIJmTZAB27QqM56xXI44Ap0PAAJQUH4iqbIiIsqtPHpuhw3McQCqSKJXft9/vY1DESYSAIKckWywWMRenFancnadCTFL8CUlGhxB5XmyemP+BT64zHCpQnaoIklh9bEn5//fRkVTEEYGXxT0AiFwHIoAkY3CSAgcjhyesONcLAQyIkuLd+bK0yAmRtqUimAnoxN+B8wcAAP//+GUCJAAAAAZJREFUAwAVCXiXV/kCVQAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABxElEQVR4ATySgWrcQAxEZ2Sf7870N0MKIbSl9FdKaaD9y0t8tnejp+AY5NWupJmRduPb49/+4/Gl/3z61/G/f32p/a+n/7UeZ88PfzqxY4///PC7R8iK/Pe9aYxBg0MeQt2SbW3bpt67xnGsFd9d9c3zFwWJe291sO97rYCRBNDpdFIkwRGDxLaI398WhW0RXNdVrbVPFnzYKcZsV4xc2x9EqSzUuqbxpHmei4lkipdlqZbwKUL6MAxKSiVNrSgPelv3Tff7XSRwSNI0TQIEAgySnI4wcm3XjAKZ9KP8YMG3nTvpcrnUCvDr8ibUbG0X4PiorRmQcAwTubZLEXOxXYUMkxxly23bBQAWUKCCZIBARQWtUUQcQx0FnCtc8onXDHCQCztmuwZKkfIDNBdBcvi2dbvdFAytqWtfN4VcD0bJQEEZftplOtdMUMs7Aex6vWZqviqYkE8BMgFDCeDEOKOQ1mIchJ3P53qlwRVGMpNEf0ikJQApxgAmjzjgKCCf86iElMiG+220k0+acxIHhyCwLUC4wgOcNWDjWuyPyfJgkA4gjDDRDiAAcpVHnLZKAbIpAJFDVvaosC3inGEMjz0x1ncAAAD//4jovsIAAAAGSURBVAMAhdJfbnXBwf0AAAAASUVORK5CYII="
+    },
+    {
+      "name": "紺",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB+0lEQVR4AUxTCXLbMAxcAFLqhzXp+Y+2aSf5XprJNH1VXEsk0V3QzoQ2BRLHLg7J3397yJsfj/n1/m/J6++/8+PPp7y+faz94ddTfrr7k/KTXvLz/XN+uXvOm9uH9DUMgOF02uAeAM/btgMDcP6yJ7TNHK11yKdtrfxjyANzbdsJvTc6GNZ1oXSYWcnWGs+gfq07kCWbZGZCioiFTgZdx5COWl5676V3d+z7jjEG/UG/wfyYpQxmhohgBh2XZWZ1NJtSQPKR8hWkE0QAJCoWOXSWkTmKrbXJKP3V1bvyMbMiM3MMN/g+3rI63OO85zmYmYA6S0kyaQNGH8OysFe9ZdXDqqo+M4NqpaB+2tZ15QT2ugtIJQz2aXBavjiItELL2ajBJikAZBG7exA4Ad5FEuGQTJYZzM6Tae37RuX8O+tKGt2drI3BKjFJstDBmHpQp8wIw1jBUek1gUt6Zhpn1tyVEbjMDGZWfmJOBlPNUYbTwI6yJhkiFrKppCRTR/AOzEA1bQImgnH/OCVSj3JU3TI2vnUTfWbhLGWcJyW77tqHw4FEi7J3PuKcmhN5nsElIDMru0AEEGzcYLYvL8cJsG2zgReDgna+suAyY4Kcv2zuQQ34EZ1gds6OQI4lsA1+fQ6wIzB+nbFGSZ0zgOPpyCDUVFSqsyz1owH4DwAA//+vuKHGAAAABklEQVQDAGw5SrbEvEz8AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "黒",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACK0lEQVR4ATxTi3LTQAxcSWc7mYYvhZI2DSHtMMNPA7HvJVaXwM2c7ZNO0u5K1rfTh5+OV3/+cvbz64e/vF78+PLNrz9++vPr2Y+nd798f/evx/PDdx7nt/PVP79cXFvvgHbMs6FJA1xhklBvGbMloGa00qG0pWSYpgm1dtoqEpx2Eb4MnYHoAlOHe0VrFQrBbrdDZxERGUHoDnFATBFLSynY8g1CFGJAZzoXJuWOS+5MyO9IEr7mfNKGrgibmhkOh8OA5nQGxFZ9OGuthFuJw4ioIe46g0egPhAsy4JSMkruUJnGOy4mm5G3NhJ3L0iTBGKklGBpgQiRkLK2ugFO7HT3lsmfwphjXgy7JeHPesMUYoa/tsE/UICizvMMhcp/uA6DMlhlwrpuCL5REbSPIgz69Xsd9wNVoX4a2f7BexRCpQOhNsUTkaFD6xkigv1+D2GnehOiTJwAtigOIQxRDt5CFMI2DTthqxn2yx4g77HJPQr3BigeS6lqJIkuiAgVJzvawp5zBusQAR77jiruq4ki+ARXEYGgwdnj6EBUCV2CWkeF6QzOFycFGAIaoETIoIS4zExwiSoy2qWRkHu9FYjcxX56ekLrBbEGBRFBVIgEneOsYAbc17ptCPiHT/uhTfHMObkxeYw+k1ATDfidigZX8GdS/jDBLcSK7ghHPHzxPanhtq0IiqOtUdAs4R7QICJwByKg5AblPExpRxSsBkEETdOMKGSJZwB/AQAA//8T+YhgAAAABklEQVQDANM3XMQpoJr9AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "薄青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAB/UlEQVR4ATyS6W5aQQyFfeYuEEA8fau2Cen/btkeIFFTUvWBQMDdXH9GZCTPjLdzbM+UTz/+OHL79OY3j//888833zxuffP04tcPz359/+qbu61//P7iX+63fnv36je/fvvXh7/+4duzl/aqsmZebJhGG8fevPQ2Tmb9IBtGWT8ONlVuVVNMxa2zKXTZcTylrZxOJ7usUpm5u9UR3DSNrddrq+vahmEwSVZKSamqIA2/dLbZ8dDZ8Xi0vu8zcOh667rOdrtdJpCIbxxHm6YpATkBL2yz2cxWq1WywUxVkhKMJBjbtk3dYpEcR5IEeB0993Y4HNKAY3Y154iZjHlSDSCSkkQ6gwNUKJ0LzLDAmFmxcUeokhYQ5kEcs+IsbCg4nfFH4mKxSKblcpkzCFOWDxjVACIpB14uCgB122QCgMyByqLHtKFTyXJ5Fa3Fc8drpY/eYKAFwJD9fp8VSMpkSUacpHgFs7adv79EgRkk0GG+sJKAHZ3SaUc6D49qiMUfM6jNJyWTxSIRJ8PlZcJkxfT+QoARcyEs7rKqprTJ5vO50UoVP43hWixamswNVknpBwSAcFtBgREhiJa448RHmXWpcgaAIZAQixRJxGYL0vnOUwECCzM4dUMCAJbBseGjyqwg9Jw6TE1TZSvY+A9883ZWpx9mSUlWRZuS7D8AAAD//wFbdO0AAAAGSURBVAMAi8xVRkz8eMQAAAAASUVORK5CYII="
+    },
+    {
+      "name": "薄ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACA0lEQVR4AUyTXY7TUAyFbSdp2qpV978BJCqmHWYG8cAKeEDMwMADG2mbJjXncykQ5Sr3XvscH/8knu8e88t2l78+fspv+8f8fv+Ur1rsX3YPdf7x/kN+fXefn99s8/ntLl/vHvLn/ilftvuMrmusbVs7HA5mFna5XGycJstMG8fRhmGwlKXrOttsNtb0M5vc7HAebJQljtpEhLm7QFOBIBTGlstlkZ9OJ9myyCaRYgPTNI1FF00ZiEREDP8D3N1mM0WVKtSdRTBpjx+BAlAjpvl8XtG4dPdKhTTcpVchScHdre/7UgsZ2ACQ6ZJ+kdv1hZ3l7iWdiFjwDd2pTDbrW2FGKwXuKda0m6OpmLCTlrvL5pXm+Xw2Coz/8TAYqqOXJNgBu98cT4bk9Xr9VwFn/EgXdZxJMQCSD+zu1xxhRgELZ7rB/gaGCLC7m+xRUlarFYeKiBFlfE0PqbCHhIBdRyGb8g0Mx+Oxqo4RNSyciXhTRgFZnBk6fFjhQQEbESiUXi4hGkdNpHouibo12XXOsQrK9EbUtYVbY4tFL/lmC80CAAo0m7XVFQhRCWkjX+zu184wcIF8JOFw1MiaReU2TSnSqG5A0Op/MT1MpbtXW7nTz9QV4B9z/jmbUQNqQaSbEnEoHWydvherIrq7URxITAr4AiQy6dARgBDSkbYNG8ehuvcbAAD///gIA+MAAAAGSURBVAMAOvCCOySOE5YAAAAASUVORK5CYII="
+    }
+  ]
+},
+    // ↓ 3つ目...とカンマ(,)で繋げて全部貼り付けてください。
+    {
+  "paletteName": "わたのゆか",
+  "blocks": [
+    {
+      "name": "原色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACb0lEQVR4ASRSi27UMBAcb97J5dq7Av//SUgI0fLoA9oiBBKobS52/GLWjWTF9q53Z2dGvtw+5qvr+/zh8jp/+/6YL28e8ieey/p6k99/vCyx6x+/8t3jn3z78Dt/vvuZr+7u8w3P4laLdXmBtRY5Z4gI9NP/NO1wOLzBuNuV2LZtiDGW5U8b9CzDNOLscMTZ2VwCbjmx4ALvTliWFatzWJ6fsYWAyAb6NzEhpYDKGIhnRcvKUreoubqugTQCMRlV04CZvCcqPsjM5Q4+BjABMXpIdBbGGGgwsItpWszjjN185Dh1gd73Pdq2h8Jf1xVj32EYJsYF0g0jjEIjClMbOCZo5aenf4T+l3OuCCFBUZqcMOxHbCnjdDrBcTzRqiklJlr4k8XG2dfVFVJD8JjYKQFQhA3Ha02DqqrQdB06LlHYCotTFLjHi3eY55mkHnA8vkWqTBmReMsIfoulc7CuFJKcI6ZpwH5/oFxzCXrv0ZBAIkfyhP/yDO9WduzLfdc02O1fVZOOEIXsI0uRyRhTKmuRsNnS9fx4wQbnlNTDektOAgIL51RRRhKRyH6IGyyJ0ZHUVMqLGktltSRYuaoFSGErBTa34GV5gtS1dlQZUwk4Qm3bGrwl5E5tUAzzWtBgHHfoxxHtOJEjlVoqpCjlsYhg6vqy1wdKrkql3Y15JVPPGlN0xcp64bYVpsrYH/ao+wHt0KNqm4KgHVo6sYaqUNd14cdI5iypEEoVMl1W89DDU6KQEpkPMDSL8pFDREyWEptCqKJBRPGBxqWbz4C2RiD8lAOiyaW7zw5CC4vpEbcK0W00k6Z2qIjAWiXd4T8AAAD//7ADWa8AAAAGSURBVAMAnFXH+WtZ0hgAAAAASUVORK5CYII="
+    },
+    {
+      "name": "白",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACQklEQVR4ATxTiY7TMBB947MppPD/n4OQOLuFLt0VEt+xG8fH8MZFWI0S23O8Y+q+X37p529X/fZw08v1WR9+Pun5x437R708Punt9x/9er7qh09n/fjloufrE++feX9Ti3eqipQ97L1tDWMM2HLOwZ593+G9x+ntivXNEWgdvfcZbznO+4i99JmYvLNctDa4B0bXebfvDZCOoR2silorRHQWca3xEsCyZPjkwRy00bG3ir0WpBQQo78XYqOyD6gwwX5WLyaHwyFBMSa0HAOOh4wlJ6SYYZRijDPGe4GBfH9aWTQCHnAGs9aOVpUF9D98ZZvX1wLTYGjleSNsQT4ElFL4VFLpcKwxg4yKCClQoG3b8PLyMrsuy4KyDZRSsW371MVywGXUWADIOWM5JuozkLKnHgvWdYUPgIjA+7tLVsx5neLdGwqcCUbH0EgDXOWflSTDMyWSjVAr1tMRIQp6A8zGQYqmjwtOJj/HKt0sYBFPsZTjYF0sKNGJSusq7bQxMZvzIU6BnQWI3CGGECYF42iBISTSydTiAMeY3mUmretChxzs3oGLzQlLKdKG7bXzu0NEeIOZYKrvnEA4RUoBrVPQ0hhXMQuIyPQ1pYTTu2UmmX3G1aoYSnsbDTtrVWw7m8z/gllkCapKBIUqdzoTYVqIeER29YI5XIE0PZ1IwSNwQl3ktIVgQMZMFBHCTBAR7u3pdKPzWycyE9oaoWOeu8ARzjEgx4joPayTlwEhGg9BoEBOHbSxQB0I4sCoWbCUjr8AAAD//4eDeesAAAAGSURBVAMAXNacV5ZGk7cAAAAASUVORK5CYII="
+    },
+    {
+      "name": "赤",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACXUlEQVR4ASxT224TMRA9Hl92k002lfr5PKQqUhFqi0CCn+ElgIoEH5Bk11fOOHjl9W3mzJnxsZxeH9uvl4f285X9+djePt3WP16O7fT80E4fj+3707um67/fPrQ/X5/a2+fHbv/7y/smYCulYLlmzoDWWh/1N44em3nAfBgwjgNyzkgpQZvaqZ+IswhjwDBaGCuIOfVea0WMEfEacTkXxCWipIJWWh/XdQVgIKVVqLEjkPcO1nqugXVNZAP2hvKflUaFGJ5X7hs4+kiKBTlmGGMYMZGqx263wf39HULw3BcMXhA2Ds0Al8sFynqedz0dCd7AeotlSR35er0SKHK9sCcyuVFdea412G43BL0BpZQhigo2Y1qnpUB6cD4vHUhIWamXUmGZXgiB1F1npynzFoSGhT0TIONwOGCe99jv97i722OaJlhrISI8V7uIKwu7rvm2X0hDox8OO+a+o1HG+XzmWKDXlHNjKgvWpTBq6E7OCecOop9zgYUbAVNZlEynCh8stCntZbmQxRb7edNrpHtaC6Wfa9FrzKQfkaICJAIUlAwU/lQH3g/Qmuj8VotGbCGrtYtPrBHS0vwqlVYJxtwq94zFGAZYAzix0BpoZFXnMHgE5zFtA0RFZFkkRQfbNGk6hQxuXSOrY6HcnXNQBaoPTbuNqGOi6lKqmKYNFMxR99azSFSaCxw9+r4xhlfIRW1ITFEFJWpYKOeR7yHzHVQeLssKKwbgXItWE3grmjtQaKPRHdlUvhehQrHbTrBGIC2g5tJzr3yoVTy8ddBq55go+QSRLQw8alLpR/wDAAD///9ajfEAAAAGSURBVAMAOqGmRpasuzYAAAAASUVORK5CYII="
+    },
+    {
+      "name": "青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACS0lEQVR4AURT2W4UMRCstj3eY3Y2ROH785IAUn4ECQkIiD9AnOEBIdiZ8dVUe0WwpuWru6q62+Nu3n7V5/ff9Pb+QZ9x/eLd97639e2bL3r96pNev/yoN68/692HH93Mx+7u3j+ogyhqrVjXFTZsraowizHi8rjB8WLE4TB2Pzt3TiBi5uCcazDH6EM/bK2CH2xkAs9JMc8LTqeZoEDJipwLLSOnCifiiVwQNx4heLRmDhXLsqDmfDYCPSpDhcAzMNA/wK2poJRKdCVQo9QDDtMWlxdPMO433Wm73WK323VlC/1ry9jxzkDdEAKGYYDJKqVQ7kzAgpQrlrVgpWTVxvsEJfuBgYExP3/9JmFPQTu7iLAggtOSkEpjziec/iQ4Bp/TKrx3VDTAe4dxt8EQmYpq7UjLXJCTw9XFhImX4zji6umRUs8KjVVEkBIJ1tpnESFBUeSqbNUexylyXbHQSSm3sDa1uJ6WBXrvye4BabDO9RqIjzjst7xwKK2xC61LBUcpBbms2O/3vYgi0tUq34kpUjgq4CazXSnlR1kWWKmsEMCT1ZjMbJ/Ze21WqwVpyYQgk4j0ytvDWebUu+KD9Nk5R4/z16hwPETWJSKGgC074v7JEZEu3+QakzGaJdbDZjMDS1SQ0zlNA3Ti0KWv7Ls9Fh+AGIdeExFB8JGtC90MADZYRAMMg/yvwbiLEG1MpcIeleUOjlJTL5yxiZxV8rgDVv4nbhe3mKYJjblW8fANzG9AYwsNJPCPrLXwsTUCZwT6CVucasaiCX8BAAD//7SrXpYAAAAGSURBVAMA2SyyJDaZChIAAAAASUVORK5CYII="
+    },
+    {
+      "name": "黄",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACQ0lEQVR4ATRTa28TQQwc772TS5si+N08RBH8skogKIUvVOWlNrm7vX3h8YlI1vrs3fF47LifX67Lr9t3ZvT/fvtQeD7cXpcfH1+X7zcvy93Nq3L/9br8uXtfmL//9KY8fH5r305EkFLCMgeICEIIyDlbbBxHHA4HPD8eMdS15UUEXdeZDydwqWSY07gtCEAh7BLBkBOm6dGAWch7Dx8i1hjgfYBrqhq1q7DrOwNiIvqI83nGsiyYFo9SRFlBz4K2bY1dWzcYuh5u9osirpbMMeFiPOB4sdlut0NbV+j7HlVVIaSM8zxZrK5rZTBvDMhiWb1WyZjnGVFpk2qMK7w+ijFqYxuD/bADXGXMeDoiSeVAEAbY32la8PvxhMenBTWKUaYefduA9ysBuqaGc05F1Ams64qn2Sslj8vLS1wdRlP+xdUVhmFA0zTWAvRHIBpZNZUChBRREvDsYgR7D6oJARUcsURTf1pUUBVWpNq0yjAxOW7Xt53Oeg8RAVG1iFGzkYXV6I+7PcZ9r6lsAG270TcAPuIk/tMS2YAYZ6xWtenT+L3qpCg4x7ssq66QPtAVsurTui0HZ82+qbiIQOsi6cIRbD/0ujOD7o4o8wMcaTDhtGkRMdG2EUYDpR68QyulWIztVboXXDR950yoEBKO4177h62xJqwqmXBTW908ETFNCEZruhqOU2CVvm9tkdgrk6zA1uizMk8RgcWVLdskE8ee+I+rICgqkOQC+kn1GHRCIqIMk1LPYKFUgCIZJxVwWQv+AQAA//+h1lnaAAAABklEQVQDAPKTqzF5ddbzAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACUUlEQVR4AURT7W7UMBAcr53kcrnrXSvES/cnUPEhIQGCx+nfguAt2ktix/Yya4oaaeXY3t3ZmV3L24cvavbm4XNb77i3//92e/9eb+8/6bufX/XDnx/N7n59U7v/+Pu7iqKg1A3rUuCdQ8XLt+86XJ9OuD5OCCGgFPrS4OilglwrBM4D3HSdtEhLWAvgpUPKijUlXOKKlLZ/cbki59xAbRVxisDgaRzhnEPeKmJMmOcFG9EMFURSZBSXgaANCAXo+x5SmNlOStlYkmKaJlwdJry6ucbIxOKBYRjQhaElvzwtEFY80m/LEeIceRMhFiXHjGVZLF9bI1Eq75xzvCtQVRyPRwTqcblcWFiFdANLh2emCh9c47fEiKd5xuPjDNMjPXP23sM/U+iH0BJJWmeskXZZEefYVN/v9zgcDnh9c4Zp04cAEYF1qSRtIJEgwfFc1aETa9cVzucrChiRqXxgQCa8CTkTIMcMYSIlHeM49GOjJbvdDiM7APHYtmJ3MDRT39pkyabdBPNTSm9WOQemg3MO0vixXYmoFgR+FrhtGxNu6LqOJ2gCbtTC/OxuXVeYSdWMTLNgGxrj1rFtnoH92IPltFItiyfn83TCcXdA6KS1V4YwwDQwR6faEGNaYD22pLZaK60qS9KmktqYgLYXu7SSjOuJcz8Qve92bGtoLex9D+NrVEwbJYjFtHcgArGeO+dgk2WIOafGtwV4wBxVC+UrbCMr9A59CPx3VgDkfDjywNNxa1yzVo6qa49HiN4HQSoZyoc1p9j+E1+vq+az4i8AAAD//xhqHYoAAAAGSURBVAMAK3Se5jQCYwQAAAAASUVORK5CYII="
+    },
+    {
+      "name": "青緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACVklEQVR4ATxTa28UMQwcO9nX3fWOPv48EipCLfAz+ABVXxIqIMrjb9Db280mMbZRiZTLJnFmxvYcX369kfOHK3nz7Vre/bqTyx83cvl4J6+/XMmrzx/l5f0Hufh+K+9/38vF47Wfnz988vi3P2+FdaBpImLDEBGgANM0odaK9abH6fHO75ZUIJUQQsDzsHhOtSDn7GclC5ZSMKw6dH3jINOSMO4nzPOMw+GAcRzRD63fExG40Z8Yowcb4vNcUvUzA4WO7W4DmyenL3QHpJT8noPKB1XkpcLSMYlUBVkSDNj2tqY5e8x0SCiq0tLZP01gy7VoBiZxv997jgbUtq3LtbOmaWDKsqZqq1R2Bat1pwAqqCjCeuhwerZz9HkpiNRgGAYt5ABiAWvtohba1pwXBwyBwJIrjC12LRZ9GCK5CmMy2SbVOlALwYcwiAh93+uWwZULSKc9KNoFW60mNg3smd1YHahWtB2jaYOrYFapAMMeZ83xMCb/LgoGZbNHIQRYHaCDOaAWxjwtsDsWEm8HEWFZFkUP6LoORSudFdAUWbWt/1Zw4F+8xdqeq1qvKJsdWLsstyrZzdR20ZnXmx5nJy+w3axcOhHhaD1gs1qB26qM6joLNvc9/RmR5uJqalE+tbcxjVPClPJ/tVkqZlXMALlBzEim5Hh3pAYKEPW9PbQiQmsBHaJgNvVTSTLsjtNhUrbsrSMiPI2z58/MICIQgppm0ZmcPZkjS0Kv/4dI2sbt9gi79YCoxWEAkQldbIEiqOoLWwdt2xDVUBWIFNCGFpIL5nnBXwAAAP//egnH2QAAAAZJREFUAwAdWKdGCEdVrwAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "オレンジ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACRElEQVR4AURTC24UMQx9dpKZ/cyuaDlqKW0vhxACUUBCCIEK3KJSq85MPuY5K8pI0SaO/T52Vu8+3tjd7ZX9+nRtvz9fmp9/friyH+9f29c3F/bt7YV9f/eKdzc95+72su/9/s+Xa1MRRWsNy1yQs8FQkYbAJdjtE87OJ2x3Y88xM4SQgAB4jqpCay0QEUAqYozwYCkF81PhWeH7nDO8GPyczIqh5EbCCvWiEAJGsoQgzwWb7dCLnp4WFCsYx0Qig38O5qDkg65r7UUBQpnoicfjBArDuhakRCvjhmwLV6XVzPyV9iLvG3Qc47NsR13XFff390wqcGW1Cgszwdkr7jebDYZhgMdTSlDRCpETe4xKsIhpOpIhdRDvgaoCpuxJYPOsW/OY90OtKjJtrEuhvErJgYUrcq5dwW63wTyvXAtClC7bTKigMidzCs0AadhPI3bHgYkrvHEi0sGc5XDYYzqMBJS+POakKQUorNFTRBMQRyhT4awiRgZnqV2ZK6rVyGwImhBC7HtaUTaowT9voKP35tC3j8vjIRqBI/zsOfM8M3yKqQcdueXSEf0BPT4sqDyLCPxt1Fo7iefu9yN2+wFpG3hn3oOG7db9JYCdfnE29QSNAf6V0vjzX+U/K6itW+wWPOiy/H372FyFF57sBMpXsoU+bldBRNqRHlN/PMuc+QJHJhjHVPDw8Aheg+ioRfpkvOtsC0SEQjk5ULAZNHJ002FgcuPFydf5ywNnXnus8X/gry/wDSzLAqP0wMnBMvJS8BcAAP//4tGD8QAAAAZJREFUAwCtTJ6NDCiGGwAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "薄紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACUElEQVR4ATRT2XLUQAzsuXytvSz//yNQSYAXKEjCI4Qsn0HiYy7RGoqpUnkOqdVqyfb+5ir3d8/y5f2P9n28u8rD7XPbf7v9Jd8/XeXrzVOzz+9+yuPH3/Lw4Ur/J+6fxQIWtVY45yBiUCHgB7qGrof3vr3Fo6LrPEqR5q/vYg2sEcAYgxgzAQr+r5wzilQcR2r25jLCWktTD4uhC5AsBLAF+5YxDL5lUyANSqng5WXFth1k8C9BKQU5V2zrgT+va0tsjTG4EN37TqFxOo2Y54k2YFnGdtbM+qisjuPA5e2Ey2VGJkOrtaeUiJybxRihZ9VlXSP2fUff9y1bCAHn88RyI7YtKSZsysB+FF5mUnXUgUJW8Fy5lxasZVFn3mVIAcEcdJXsYGEiQnCYhp4KFypteTYEMyxjagDKRpmAS0RaF1SPqRfYqojshD4E57HvuVnnA3JMpHq0kuZ5aHqon7DPBg6FtKiPh3EWqVQcrKek2NioY65C2hHeCYTOJUdwDHDsCaUmJGa3Sk/p9L1r1Kdpgi5VXE0FXJaFdRtsK4Mo+HIeW4eszgU4e7qJsZKqNCYxF1jvWL+KWrCzdSlndEOgLgOUXdwLSAzWWIEz1NIUZhGycBQpN+oKqvWSPd8c7/Q+M1Fi2oJiAAuxLavOuDIxhoAuYBxHMggEB4NN65COr86C+nnrmCzAZtakg6Mjuq47Xl+P5lxZhmqj/wMxoQEVzMpxVkZiKmqqsNM84jyfMJ0CvwtG/hMDBVXqznh4GyAaqKpHZSJQwMoh2mPFXwAAAP//l/5aXwAAAAZJREFUAwBWrqo9h2JTCAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "茶",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACTUlEQVR4ATxTi27UQAwce19Jj7RHy89XpQJ+owhEVSpAwNccd3nsw9hbXSOtdhOv7ZnxhH98vZdfj/fy89t7+fv86fX85/vHfn7+ctt3iz893PZ7j5/v5OnhTn4/fRAmIpTckLeKnDNqrfoOLPOGdakIIWBbi35rGIYBtQg8MZwXEBFYRPql8SLhnBwiwb6PFwFMHkQOzB5bXjDPK4gEzjls2wb2Xi9wg1UmOKQU9DIjxthRHJcV67oiJgZp/O31BGvGzLBctuC/Y0WpW0dCRJ3KvBwxXe4wJoebd1e94zDGjqyU0hseFQ1bp2Hk3tWKQR+rnlLqhTotS1Btsmp0Xq01WC77oMmaZJxzFljnVtHRWEETeF3yq5COA2xpvgoI8HxaNdi0BHB98wb7/R4x+f5OyjkpEltERu2FaimqWVsRogNrDcToVbzUVZ3nGcuywMba0TmgSQHrPgyxC+k9Y5ommBYcTV2tvio/49UqYxxHOE+wZ161a4YWFFjcJhC0s0gDM4HPooj6wS7YbvM9nU59fCK1jysE92IkFdOEXeas8U2LMPduTd1ozvMBIKIOcRx2SJoIKmhKY1lPnaYJG0LoSFkawamrRBGYiSxoUzB+5g2z8TIXzKcMS/IuwpAaCpsSs4NOoSANWlHtbOYhItjDis7MM12OuNrvFC6htgxSfaxhDAN40Z9GUDsKq3g4HLrbRBqaCmpIDFHVnyhndaA4iJ69+keg09ldTthdTBClYiv4BHNYLehjgrCKlfXc0NRoylmReJ0KKfKK/wAAAP//j3DNpAAAAAZJREFUAwDq4KNynWPlqAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "水色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACNklEQVR4ATRTCW7TQBR9s9lxtvufAgQCRMUtQCBAVBwAqNI2iWN7Ft77aaw6Hvv/eduf+o+/ju12392f2t39c3v3/dDefP3XXn3+295+e+D7Q/v0e2wffj5Z7/sfj+31lz+29rVWlFKwLIs9tV6tVui6DsPQY7PZIMYOOWc455BSspq+a+1VuN1AhfcR8zzbBoGIALxc4w//bkTaM00T/JVlwG63YxmmQsUYo60FpkYrvvwIVEApBXgtlqWgtYbUBfSpo/SBSrypUPN2u4WPwQBlsdYM2QQ8mAHMmwqXMSPXBZfLxWx4782vVBhRyTTZ0K8SBCJlXkhil2ytmSkB2dQnHM8nCzeEAF2bYY39dodlLlCwXRfhxZwrp0B0ISb66vueDBXaIHApmpYZZcm4nEeE6CBF85xfMphmbNfDi9yM4/FMAJAlWh77/Z7MG6S+MwslN4isiwneOWcTCJTpnLPwFFrivKVOTGpWDpX+1KdsbnUfoydbZcKN98JpFGbgbAKZh0cWGhZ+C6wXC3ekYoG74OHlA7zElHNFCAmlTgjBcZMzG845Al8J+j6ZXZ0bx9Pluddk6ynUnGeU7FBKs+9SURenMnzgw1WrqVfvvuOZr/SmxoFnf73e2nlnq8l1ziF2DItnAi1iPC9opV5tk4gWZmu8noGKw+GA0+lk8odhoJVgeYiEoWM1cPahCh9695p5jJGyCn06rNcr/gcO3DRjHEc8Pj/ZzAVQOL55yqjtmsk8VfwHAAD//yFnwJAAAAAGSURBVAMAd8qxIvQMPsAAAAAASUVORK5CYII="
+    },
+    {
+      "name": "ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACcElEQVR4ASxTC27UMBQcf/PZzVa9/wmQKj4qFRyjgOgPqaVwAFrR7iaO7cc8LytZ2TjOzLyZiX04v5LH85u2fn28kfuLa/nx7pvcvf0qV28u5e7si9y//y6Pn+/k56dbeTi/locPV3Jzdim/L27FijXItSClhJwLTBaMfY+h69B3AdvdFt471LVAckVwHrbz2GxGWGthS8qotSLnzA0D4yzWUnBYFvR9156BJEYAC8NnuQEtS0LSd/RQ3wdM00QA24AKAZxz0Ksq278u0Hv8/+n+QgLds+u6Un5BsQLxFjEGdMMAFwnG0UqpmHYjjAEBcyNQnHEcqK7AikhjRhHkZUXlnPN+j1lZjW3M65qb9JX+CAGVRL1TcNv3EXAGaV7IHmHogQsBw2aDw2FGocLgHEkrnDfYnu6wUpkSh0BDE02UVJChIFRAt7zlOPQhEjx0ES9UtOwFqIJEUCsGjufVSAv9syZGF+l6QEkrXl8SCuV6vuy9x+70BNuTHmEMMN41IFUXQmCMZBrHEYFywF/0lD9GxM5BDdalji/0oWRApVdrEGOEpmGVofVAKo0qbTnOrHu2AHo1FezAcaXDwjHYgSUj8BxTqEdUNi1TvjHmiMyWcVR0XU9dAK1hQgUDI95OI6bTLRPyxxi9P86llTaMVRipxqkvzfPcVAACUqFyM+e19aGiwqpcXrEyf98FjJsenmVSzYkHhYpc9NRvyeigflSmod9F5th2z4i0roHN67oOT39e8fz0F7UYpkKwYNjU1MYyxkDPNFIopoWdpg0dDbw1rYnDEHHCL1BqZpEO2D/P0JZWfnC61jkdR2L5tLn/AAAA//9UFzfnAAAABklEQVQDAAGxp3vs0xq2AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "黄緑",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACWElEQVR4ASxT2W4UQQysds+1cywrcXw8EuSQ+AgeSFAiHpESEsRf8JDsMX0a28tIvT3bLtvlqh66e7jgm18XfPd8yfe/r/j+6dr+f3++4h9/vvDt4yf7f/t0afvNw2f+9viZv/78KDnXTM4xSimIMaPWiuKK7BkpRBxej2B24FKRYwIqw3sPqoBzDkQEKqmiIW8ByZfEjNZ3aNsW83ZC37domkYKsSWEFKHLsRTNGTQMZ7CCnHMGtspSPYQgzCJOp5N1VAbKcrfbYbss6LoOFELCuq4G1KB3hJxOchaNlfct+k2H3TxhI2yWeZB4wKp5xwBy1NhskEeaIteCrp+g754g+iQMgom5IqgWCUiCKTJCrTJC3xGGYbCZ1zXiuD9g//KKsWuR/4uryTEnK55SMo2UregLyiJEKAFB5p2nDd5/eIt5GcUNaQ+ywgrUhJIyFB9jNNbamJQKJ4d5nk2oKB3WUKxgzhEqbtMQmhYyGqHve9SSQGK/c052+ekHb5WLUNYOJALomSbrmd6RFBkxiOVi6TSpvf3ZWmaGBlPJyEzQu6CXK6wFNTvozAQH5xzUNnVJi2qjHAsI8rR9Aw2ksIr6ZEAFN507C9x5dL1BoY2SOKLLNwxyaKXr+VahOrsP+/3e6CkbZXA4rlhP2WIOVfAZOh6DQIwkXhc5rNi+GfFut2A7nudTmgocN725YQKKJSSKVrDlUBD7FDhOnQn59+UAXZDHy4ejMXmFvuuuSy3V1cr3Qovc6c3QoYhgUW5a23qxdLTqCtKEXFji0T40PfNOqItTcU34BwAA//8OfzuGAAAABklEQVQDALkfpiObWOQuAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "灰色",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACZklEQVR4AURT7XLTMBBcfVh2YiehE97/CeBHoekfytCvtLwNQ6eJZX0dK7WAJxqdJd/u3t5F3x4v5en5IMena3m8P7zHV3L/cOD6Knc/vsjN98/y7eaTPB4P8ny8lofHK7m9u5SHn1eiFTqkVOB9AFAYJ+ScGSdYq7HeDNhOa+wvdjBGwVgFZyw6bfhuoEtemCAtUWsNrR1K0VBKEcDxLqNkDT+HFi8xwseEJeV2podhwGrVYbtdN8Tz+YwQAs7ngJeXF8YF8zy3ZBHB36fG69FBz4unfI96kJGx243/17ShCo1uMLC9bSDeJ6oNGIce8zmCHjgyv/sQIhkDImU2QHoRY+a9aQSARt93mFZrlhGgREM716HrDOtO6DtLdBCk4PXV49fvM5Zl5nv4p3IYHGLJoF3oBgKklPhBQVikJVWnN5sVmQz2Hyd82E6oPjnn4JyFUFUpLCMrNk2gRTJOpxNWa4f9ftfU1BI0KUopyDTudFpYVm2tRqpnTDZSWlkaquDiYkPGjvKJTEV1DipA3WtH+r6nZMul35J0YedWnBoq0MqxhEAPCgHQPlJKkVF4XsATmihtheARfeZdxkzDky/QRUJLrEze+9Z/pRRLUWwhuBsmxEZgrcO4XWGzGakkQwzNhHQYx75NHstCHVNJiqAJlT2Ewh0NIGch2JsCR0OrsdqQrbIvS4btBOPUw1ghg7QkkUj5BtZaAiUCBw5U5J44FQq6dqBOV1UxjiMCe1w4XtW4mlTNBJ86WPW9stY7HrWf/nAxYTeNRM2UF5H5R0GRtzhH9t69x5lDVVu+0Fyys82zD/gDAAD//ytrPwIAAAAGSURBVAMArW6zuEF4ilkAAAAASUVORK5CYII="
+    },
+    {
+      "name": "紫",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACYklEQVR4ASRTa2/UMBAcrx07uVzLHbT8d1QhyusrD4kWwaeqUkvFvynHJU786u7WkmUn2d2Z2Z3Q1bu7dvX+vsn58+ND+3F5164//Gm/Pv/V8/vbW30nMV/e3LTry/v29eKmfbu4bb8/PTRqMEhrRioZpRS01rCuK6bjjOMc0XWdfl+XhKEPSLnAGANnoYsqJ/nOIXSek4sG9z6ArMHL7UaDjbEgcsilIsYI0wys7RDXBOr7DtZaGGN0hxC4UFPkaakQ5Hme4b1DrcBut8N2O2iOcw4kVSamuqQVAIHLs5SKeYroB6uB52d7BFewHXsYNOTMhVPWGOIFYww6yxRz1gRyhGEYUHODrMIyc3XPvYkzF8gM0hB6DxLtcim1YYkZh38T4rzAc1+EmTR0Ya2yV0b13jNRwwWK1AallFRnQ8Xr8x3OXp1i3AxYc4JlJn3wWgytQmITT6ywBEtg1gTKPBbHTwMHLjyqmdEnocmoRMRBBrKkYYEbTPwo8RsGEWkUglPdKVXu8vMex1GnYIzBMSZFFilSaBwHOGYGZiwAzKBi0QmIiOctwcJCRihJtnMg6xG85WKFgaAmi8JSAkLnIU6UBMcGcWRxuj3BhtGkB9aQOm9luUI71wLJEdkEXpVnW7gxrmOEvDJK0iYKkzkuOE4LDv9ndkmD0M487sJNVQbyonCyZ5rjsFFk5zvxk/qj73s10IvTkbV7CLr8H41tLe6kw+GgxvDeq1EeHx/ZB0mTmZyykbPWqnFyl3Fatr/cab/f42Q7qjGEluc/rmcLL8uqCc6SNlkaLd+lkIxUmMS44gkAAP//4FktawAAAAZJREFUAwC995Gmvh4l+gAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "紺",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACNklEQVR4ATRTi27TQBCcPZ/t2EkraPlrQLzKbwCiKvApRQJR+ATSOLbvsd3ZKJFWtu/mZmZnL+Hm7kE/fHvQ93d//Hnz/a+++fpLX3+511eff+q729Pexx//lHust7e/9eWne8cH1QJWKQX85ZwRQrCKyKmi1MWW7Wn75722bTAMA7ouIqSkmI8Z67qCABFBjBEigqvrS+x2OzRNYyQw0mBiilqr17IsCGQZxt4Zz8B5nh1IQoKWufgBstBpKeqCRonARVUFbQWzzkMlK8Zx44eWJWEYW2w2HaHuTERcgOKB1nmQrGTfbgc70GO/P4Br7JWW1zVjXbK1uyJINIHRMWEYegMmpJRccZpmTNNkjlqktYAtqIphCmIb8Oz5iKrZ82I+NgWFiHgxvLZtcXV1aQkHD+3kroACIuJPZsWiUMi5mq0MqqmqJS44HBZzsWIzdIjRY7L15uTKpsZW5+PqezbG5MCLy8EADeZ5NTdqU+lRazZQBAOkM6A6xoWiGK5B6PverTIouqG1GDukRNvFCRebBFXPa3znJYP9rIXsI2Hi7NMmaczilqlE5RNpNEfV6uRwu+v9nIfojHaFScBbyYuU7Zuh8sk6kw3D1gLuXKTrOoSmEe9RRNG1G1y/uLAZb6z34KMjuYj4O9tkRnaT7VutzYQQYovjcbG5VnR98Ak8Pk62WYwkGtlooNNIKdbaH4luWHQYjocZsHR54xiijyc0aCRYvxX7/wdMh/NFgwsFC4pFd08AAAD//1JG5nQAAAAGSURBVAMA4AipF5IY+YkAAAAASUVORK5CYII="
+    },
+    {
+      "name": "黒",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACVElEQVR4ATxT2XLbMBADVxIluY6T9P8fejiJm/SO2/5Xp7bEc4ulJ3mgyBH3ALCgPDz90cOXZ737fNT7x1/68PWod5+O+uH+h77bf9P94Vkfnn7r+8NP/fj4/TVufzjq/ulZpQKoRaBZeQJ3B+cc+r7HMA1QUYQcMM8jNpsNxnFA5zvI4HgeIbVWhBCwrmtLFJFWyD7zPDNpwna7gWppcTlnvCzLkXHoW8C8nRmkiDG1wFIK1tPKwhmnvytyIFYiLUXhqkNcIoZhuCCwisPQEZqDEJqwaFYmdKTEziq2a2tgySklgHe1Zoh1zLmixMKlsKreC3a7Dbqua92M96seIWJ6M/F+BxCR9GOHzjukVJpgBs0uwjnhfAqNjmYgrQk1Vcxb32KXfwtiiRBVbdBMPKMSY6QOEcuyNFGnaSKSCwWLMVQN5Sjw3kMap7VgpXgiPa5urrG52rT1ht383IOaQaRrjWLMFDBgXTL/ARJSbpVu3+4wTQxOEafTAqDCRmwJ4Rwaomny1Kij0B2pzIwRyDiOcL1j9cL5VhQ4zH4AD210Ju72eoPt9YyVzUybyp3+ougFUjkmEycSUg6ZiZXiVJgxcy7ox56aZNQEsA+bKcV2OIe1iSzOOUIhYDoy02XmSu978qu0at/unLvEGB0TcKBXTMCb2ysI6CzzdnUVzrnmysvI0CjZ+eWdWHJaqQ3RKKeXc0QbowWZRY2rOcxMY6vvBX72MI2sweVOOFbHR6ftv4g4pFoIdyDXCHsDhSN1VXlWChlhggr9bEgCEVgz11OLrPgPAAD//0ZGZTQAAAAGSURBVAMABkegVCTdhvMAAAAASUVORK5CYII="
+    },
+    {
+      "name": "薄青",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACbUlEQVR4ASxT607WQBA9O223FwofkPj+j0BiIhBjNIFo+KcGwedQ4Gv3Op7Z2GSzu7NzOXPOVK7vH/X2/kk/3D3q7dcnvX140pu7Z70x+8Nvvfr0Xd9/+dHuH7896/X9r3a/+vyznQX8cs7o+w6ud9BSUGvFHiKOLxuWZcJyMkJEUEqCU7TzNAgGLxBz7roOqoqyF6AqnHOY5xmHw0pnhxgyXreIUBRbjkgpIcWMfUuQoRtQoXSUFphi5a5EUhFj+r8K1mXENAzwLHZxeYb1sGCceiLQAoaipIJUMlwn2GPA6x6IqqLWgl5cKyAiGJhkOwZsx4jjTgRwAnVAzIV7xyDF+cUpTk9miHQAHIpW7HSOsRBRBCEj5wpRQJxzzbizp8r+RBz+/tlaImVgIamnpysmP0Cg8H5EJpOxRIyjpw3MIoLzixVnhxM6eD6McFJbEu89jDRTyuBbwhBCa4WhRGE99j0cpUsksJTKvjNKVO7ESK8UEjL9Yk60VcxEYYtPEKrGXh0fGEASrZpS0p6QOzJOtJg4C1bd3pxz9Cft3I14AT+rWiw4K8kEjmHH68vOwSlNkbAFBKIQ6SEkFeRmo80QiVVzzsE5aQFn64h3l5c4nC8wBNM0kXRrpXC4PKQXVBWWZSvzxDtHuJBpq7CuC2wyt22jTJlO2hSa5oHBc7MFTqW1crJOfAek1ETWPWzm7cGmL/A/qNQ5pQwRViygEpnJlYk8psm3QTJlRKvg7e3IHvfmvCxzS+icQ091eukYXLlSQ2ADZYVE+ialdF3XDuZcOY1WXdmycbPve5PPRm8cPHw/wOyGahiE7SX8AwAA//8vkmYVAAAABklEQVQDABtfrLHoTqKCAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "薄ピンク",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACUElEQVR4ASRTyW4UMRQs293t7p4ZEv7/TziAokTckCALFw6gEJA4RkqmF29UvViyPGO/pZbX/vH6rj1d37c/Nw/t9/Vt+/v5oT3d3LVfn762nx+/2fl4dd9+fPjSHq9u7U2n3v7dfG8e8Ki1IqWC1hpKrqilwXuPOHY4HEeE4HD5/sT/A/q+f9sDU4cAX0phcsO2bXDOWaJzDloKrjXDs4DeU0rIOTM+Ie0VL8sCP449u3R4d3Fgp4Bl2bCuO/Y94/XljG2tOL8uTMhAc4auNqEtmKYBPjMwpwYtQT2eIuZ5xHyILDxDVIZhNPjqbpt0Y4zWzNdKDUo27st556lSMDSZgYUUut4ZPecc4JoVlm6d6+H72CFOI94CA7YtkWcl/BXPz6/Y1ox9K3ZKr3mejY4VCICJuO87Lyu5JnNiGAbreEFdpM049XC+QveNTokWuJxz8I2CrEtiQsPF5YjjaQJcgcH2sCUH0IIVlxPaQuNrgS+p4vRu5j4ywBFJth1CgIJ2UlKVUncWDSaq3iTyygcfem8JglY4RLyzIHFMdEjnMHQY+kgtElbarMJC5aiPV4IuBEtaaAaktDxXJw1T4tCoQdd15kCMkfMQsJKqdw0Yx5EacEhoqQTKnDYl6LcQ6FRx3eu/3oYYOEgTPwRCKJx9WeVYbeYQdaE3/kIldAyBuqrQcl5pcyYCduaDX/fEiVpoEeEd5EBD6DzGKULwlaStroHCHo4zhthT8Gao/ekw29gqQBAzpy9RPKkvBOKd8o5Ku0VD34UE9PzA0nnDfwAAAP//xgHV4AAAAAZJREFUAwAYsKmIejfmvAAAAABJRU5ErkJggg=="
+    }
+  ]
+},
+    {
+  "paletteName": "地形ブロック",
+  "blocks": [
+    {
+      "name": "ふつうのつち",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACzklEQVR4ARyS247cRBRFl8uXat96+jqD8hVI/AAfCBIRUgQk4kOQkMIDl7yAhHgFHiAPgcxMt9su21XlqpweyaUjS3XqnL32Vt2vr+L9Ly/j2x+ex3c/Po9vX38Z//7u8/jP91/ExzffxIc3r+K/rz+L9z+/iP//9LXUr+S8iP1vL6P5/duoHs8X/ju/Z7CBswl01lEfbmiPa6JWdHOHRRGKlGSVSE1gleOUYnAO1W52tJsj7XZDtW453t1CtiLTDamu2N3ecbh7Rr3e0+yPVNs9Wd1SNnsoKtSDG6luatJVitI5l8kQY2T0M2Qpum7QTUlSZAQZbmOCT1IGa5hCQB0OHzEvAU8mDTl1s+GvP/5kfbMjppoQM7yFafQMlxH8QhCZaZpTlrVs0HfSnJCkUNYrmm3Jx59+gl08SgVGO2D8hLxDolOM87Ld8nT6YUTt1jW1XjGPFnMemPqBYZAmY6TO9P30JOkqK08UVZGzrjU7kb2uNGqaJuxoGCfH6Ba63mDFETsHqcI/yaR6OZaLTLRO7ltLbyZ8lC0ZZhY7sxFIZVwok0Aq/2E2+EtPFi2rNFKpyKGqSJaInyzRCA/ZWjH25IslF7fLLKC8Z+w6SmnaCo9tXdIWBTrNMKaHZaLSCi18sugkIfIt0mRE8ziOPN6fIAhpZ5H3cPNEfz7Rnc5YM3C9E2aHExnXo6w0l01N3TY4Ie98JC9SCpm6XH3ONyxEJjs+2d1K6PKywkmfXEWpXAuMQJIlkraau2d7WiF8Dc0olj2c3omlirRquCZ0MJazwMxWNT4gURYwIXj86EiDQt4BkqfUFTpDi21WgjZfHLNY2vcjl9NA9/AoUj3KTbNQjyixJIhF/bnHyoRkWlhEvzUXZmFghM08GBJxp84iubhVpolAdzN6lZFrTRIDRZ5KbEcmAWYkVCqFWmRujw234spuo4nLzI0EsMhzPgAAAP//F5m3LAAAAAZJREFUAwCaz7kfRmOj1wAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "ふつうのすな",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACTUlEQVR4ATxTy24UQQwsu7tnNgGJOxcufBY38iBIfGHe/4GUhCgSEhwQIbsz/TLlXim7Y7XHLpfdtke/n3+y+8szu786tbuLL3Z/cUQ5sfvbI7u7+WxPN8f2eH5iP66+2sPlqT1en9F+Yg/Xx/Z0+83UckTJW6y7LWp+wZoXyhbPfyt6btjuMkov6G0FrKEWnrmiUZbdM1QTkFJC2Ew8J2zmA8zTBu8OE2JImCbaKRoCIAJRHRJihIsevnkLSRsYIjpm1BaGNGOAesAEE8YGD5wgIVIEad5AwwxdlozeK4JEaApADNApQcKEFg7QA6NtIrkyoNOeoPEAuXZ0oW0zSp8xR5YclVdISDyZCEkMkySEKSBEVklSVeVNBPM8I5BcWzP4z8yGQ0TgIPAnwuw8/eHFht9197fWXIXCePfeR1BAgBO5J4S9LnFP0mlUCETkFeNEqolmN6qh8U/ceDyDAzrJTdyk6KW6MpoKNthftLRlZHdghw121yXo0B3EVrDRHT5qr7DXBreJiMfuK1A2x1ofJbo+AEHx/sNHBw37Wgs8c4xxkHsi9RegD0dI8RWsJHTA718/6TX6DYlliwj8eiKyn4Iwqxus+f06lHAX9AxQz7s/PBq0Nxh70FlF4PjESyRCQYIpdLIbtBXY2HsuFwn7sqAvK7j4CMyuwgRWx7vbelmgO348u23mx7Sg1oxWOAtK4ccC7kZlglIKdi//UPPKnH001JvZSoaOeXPzVk6AWJgyAUtvPlZhBbGiCWApQbiexrVvrLT2FSVk/AcAAP//RC3tfAAAAAZJREFUAwAFVFk3Oc1eIgAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "うみべのすな",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACQklEQVR4AVyS0dITNwyFP8n2ZpMw0/cvhZnO8CCdws99aUvLWwDzJ5vdtS2OF65wokiWjo+O7Pj/f7yJj0+/xr9vXx724ell/P3uVXx89zo+Pb2J/55exT9/fq//9fZ1fHj/22FH/v3v4c/2mXUzbsvOsjbWe2WTLdvKsj94qFZ7pkXBMWI3qM66B+tWcc8XvExM5yvXX67yifKiUOYz6VTIsnRKkCGSQWp0cyxPih0/zSLIZyydeKxFna70ONP6RDDRXSe9oC6YX9jjBWmayNOFXGb8USttMFpSUibmhD5JZK4OyFsm/Izacj6fadWovUkJ+FQuTDmPAEsTZTrBacJK4ZRmigiHnwemJFyk0+mi/Mycrzg/VkRgZgfAzI7YTJ0sGKtqoOEHbngzY8Ru3oiORA+u0OxVsZHd6L2TzTmAYbhMvwf5yJmNHRwJMzsAaAWd5b4x5NbB/kNFNxV/+nr0dBAMxmGmqYbN83R0VpWxH2pGfF+3Q1mV4IF3t4aGYKyRGN7MMDNIfngzI6UEUnKdT0dcNE5oTMcTRcCUXTebGCBz8GQK+6EHjZGFQaOZaj3UUh49pYc2td11eYvediViVz7Y67PiRo0heWPfVd/Ww5tUu22E77j1GxOmv0smiUx3rxnv9Nppj6/0/RmLquYVcynqQew6vOlw176tK8vtmcftC3V94HUHdTKBELitO/tjYVtutGXRS6nedkK4pgt1jxmzpHeHFjqrgklJVjczU95lYOMNPR1KHP1X9HrF4BsAAAD//1QoYNsAAAAGSURBVAMAgIZOuWLE08QAAAAASUVORK5CYII="
+    },
+    {
+      "name": "うきしまのすな",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACRUlEQVR4ATRT23JTMQxcSb4kofD/z9CWAp/R0pwGZvgWOjQ5F9ti7Uw9UWRLq9Xl2Ho63vvLy1d/mu78eLzz5+fPPk33fjo9+J/fP3x6+e7TdOtPp3t/nB788XhL3Bf/+eubd5++lRXzsqEsVz0vFZd5pa3gH/WyLNg2gxSBuUNdUZvB14p1KdB9OiClTNkj5zwkfcg8J4hFaNwj5QAzAyAAGgUwjQghQUPajYOIQERhFqCFUg3JEpIarIO5j2GPGG6wywcGBwRlgkZCkQ7KCNbJMlQTLBlKaVANiEjoS7QiRMC9J5Ph0yQRphmxs8c89inu6GTpuwOMtmKGEGizGzj26IlUdrCQoeASETSW4k0hIrRcf+aA1AZtzrQ29NgDA+fuJHBDrXUYRBvLIxhcXhHYBh3MCiaoaAzw7qKmoktIIJXl6jh4k6smoHLfM5g32hQfP2V+RgDS8L6EPu0gEcH+kN/tzFhhpthYWYMx0PH6d0ZT4WALOomjAsyvTmAnmS8r+hxohUroCsp/5+QrWxN1noDIwYnI2HNAUGML/dMIgRYcMQm6tiBQBnYBL0+MNuxqjXOqEHFeIkrxwrJWDnIbjlo3NF9QfMXWKgt1trTxOm/o17rw6qtikHlt0FIKAQVqjt5bbRvJGvrbWOcztuXCcx0ZzYRJBKWuWFfKNl8JlsuC8/lC40Jwueq2AqRurKKUDW/nVz6wMy0zWqnEVRJVKBci+4oswDj1mayM7MzIYnwLgsShmiirEA42QFUYk7ALGf8BAAD//3CbbBMAAAAGSURBVAMAZ3BY7J+8tYsAAAAASUVORK5CYII="
+    },
+    {
+      "name": "かざんばい",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACFklEQVR4AUxTy44UMQwsO0lPjxBc4MAJwccsYmB3xXP3/09ob8NDmunuJKYqsyAiWU5cfpTjxK8O3+Jw+zXe3XyJt5Sr689DyyaRXfpwcxeSDx/v4v3t/Yi5/nQfjgK01jCVGXWpiBroG7CtgeiG3jAkwgA4WjU0OlT6LMsCL2WHnDO2umA3l7Gf5xnTNCGlMs7CPXW4MakHku9QSkHJOyZIjpwmHvYECgMmaBmdAQYlIGUbmKc08JJB7cPuTIiIQO8VakWV3rx+BSOQycyN3uzU/RKQvcOSjxhweR5ZM8qUsN/vITYPD9/JaAdXEPFE0d6Q8OL5S+is5BI3M2iJhbSZDSZmF7tsEiWQPh6P/6rr7KfTaRjMDGa89ahYOAGBf5NK907qwtmqpmNmcoGXaR4bsE85GmlmXtrY00mVJeCSLREzs1HUYXD7zwAuOVGN/qV1VvVOZrAOzV5nYT9+/maCHtrDzDiJC01VDE5GWtPwhEtCskyPF6qgp8+eMMHjrOXsdFQVgdJKomrSxtaES8sm3MzAqQbaCrS6ovMZB5+uAvQmOmkHmSig8fn2he+XZ71I9S/M69bJoY0WwMdT6ahg2Zfzhm3bUGuF/kS1gHDxXtYK+fjKkuu64szs29qgESmoc2yiqWCdJQoQfj6t4746Gfp2+oXCRkRRAq6cDEgZjXQTP874F5xA9oKNlx5kqsvtbcUfAAAA//+11rG9AAAABklEQVQDAO8PUdlvjXtYAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "すないわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADD0lEQVR4ARySS4/cRBSFP5cfZbvfdjIPjSAjlEBEEGzYseKfQIQQIBBCsOfXsAiCiAWbSMCCLRJCUVAEM9FkYNI9PUxPt7ttt9/FTbwrXdc93zl11MmPX5uH9740j+5/bk4ffGUef/uxOf7urln9/KlZ//KJSX/9zFw++Micfv++efbDB2b10xfm6N5d8/ib98zZ/Q+NytICVMtmsSRZZMyenMuxJklbVmmD5fQoG4vGGCzX5a+jOXUh8+kaS3koHbpYtqbfGzAIGu68fQPf7QjahiwruThPuJhvoHFYzNa4bYXjODh6y/zZFOUoG9W1NIjipiTdVKyWLSd/n0CaUuUZo75NVa3ZP+jj+x3YHf0wJL4WojAZtl0TjzXjQcAosNh9acKrbx0S7wyIJ5po5KMtQ1OU7BzuMfQdGhH14ghVbLZ4oq8dm9bV6L3bRDffwTt4g7UQIV8nlHoypjcZYEQziAbcePN1fCdEuYLuUpKXYLUO8+kpf/7+G2cnZ1y78y7+3i3cIKJnW2y2BetVSr5t2KQVlQSr8Bwsfyy2GrQNhXgu8yWhhqdHD/l3tqISGX/3ZUaDiJ39XQajGCcYYGtfeJRDUdZYWjiaCkcgd3ZjiqKgH7gMJZcky5nOV2StT4crgTY4jiKODlE68GSTTSYXKiNj7VHWHdfjmOF4wjZdUklXwtAXEU3jjQniA5xwl+OzqRDYDm3boh1XsH1swe33hiR5w8X5f4R+QNALcb2QtqqppERHx1P+OX7K1fkFSolq13VC4UvTPDrVcrlIKMqcSdTDSFCudijkYl0hsw3Z4hLTli9myuo0YdCXHyraRpFn9Yvy2KZB2S46COn1I66ep7/O2V6uCFywuprAqlFpvqGua7HQo6oX+KFh7/qQaGdfzoZ1VjGbzSg2S1A1w6GDkuWNZPa84spSHa1sU1aO6w7wvCF2f8LyKqESz0W6xhYbr9y6KeEq6saQJAnttuT2a9JEmlqeK8TYgqs1w9GE02mCLeG6riKQ2vphwKM/nmA1OdQZURQxmNgYy+Z/AAAA//8FwzoJAAAABklEQVQDAJp0iB4+MoUCAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "うきしまのすないわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC6klEQVR4ARySS2/bRhSFvxm+KZKSbFlKYrjJpm2A/ugU6QNN0xe8Cboo4KCN0Ta/oKsuYte1bEuWRA7fnFyZwIDEgPfec75z9fnfr+y7t9/ad2c/2n//eW/f//mrPfvtJ/vX+Rv7x9tTe/77qT19/ZX94bsX9vuXL+zrl9/YN6c/21dff2nPz36xen11h+MovNhhVyzpB4Pjge0Nng/bdU5RFGxWa+p2SzY1FPkVftwwmaXowHfpe0VZ1uSmwhhD39Uo1yHLEg4XCck0odhJ8aTEcUO8IOHJo8fcru7QJ588QylLFIQEQcT8cEY6CkiimKZr6Zue9XLN4thlsZgTJxalVyKxJg4jdN327B/Hc0VFwaCgGzTK8SkLA67LdB7w2fOnzGYnPFoc8/zzL8jSyb4MXZgd4+kRQz08XNzf38v0VCz02A6KXU6auFJwjO+OuPhwy/XNmqvlNXVdo7XjUTeFfCi6zkUoUtQNN9eGsqlwPcWzp5/y3+UtVzdL4jQR6A4HBwdSA9pF0dTw4eKWusrFRkkpwHb5GqU1YRjy/3LJJt/Q9z21KWgqA0OH74foLMsoTQOqIc3ihwLP8xiGlsfzA1HVyYEoisjzHKUUaZrStu3D0ReXazzZA8dz5KJnlKVUbcl8FrPP/yHWpiVJEok1I4x8saBQOASBhzZdQ8+AtRD6UAn5OAkYZzN2ZSUyXSJZMis/DG1HWe7orcJqy3abozvpboqaKAwkd/BlQl1VrFYrtNgI/f1Ej0pAeb5DFKXif0ADrkSsJ1mE4/c4SkgODYujIwI3kGinTCYThh7utwaTF0Jdi1Ytai1V2YnlVu5kgezgYJ2QKPa5vLrGF/Lruzus8mSKzzQbc/LkWGB27LPfN7W2FwYBepwGHI4nuFi0M8LzAvFm2G5yiaxEexojUE1dgdbEcczGbAVwKUdU3d1sxV/PdHKIkq77nOeHB+J1JBw2OFbgugr6QTZT3mJzFI4JRz5J7PMRAAD//7NQPiQAAAAGSURBVAMAS6CEtcfr834AAAAASUVORK5CYII="
+    },
+    {
+      "name": "がけいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC2UlEQVR4ARySzYscVRTFf++9quqq/piZ7pk4MRkU/Pi7xL2CG3HjUgNBcOEyS0EEl7pypaBIiODCXRaCkJDATDLdPdXVVa/ex83teZt679R7555z7rVPfvpCtv9+J+HpI7l6/JU8/uFj+efHz+SXhx/Jz99+Ir89+lSe/vqlXP79jTz/64H8//vX8uf3n8uzPx7IiycPxR4flyCWWJW8fHlFZaa0N3ugIPied94/xdoCyYacCrI43TvFKoYuYVfv3qU6W1K/dRc7n3Py4QWTO8ccnZ9w9vaKxcUZ1fkSOZmTZ0qwqKnPF9iTGWZeYyeSMUnZ/Q6JidDu6NcD16+2xOTJY6SMQuo93banOmgTj+96Or1j45Aw/UDsW7r1msv/XhGGgATLsB9usVYvDpuOYdcRfcf2ck3ykaN6ilVC9WWwOUF27G4yYEhDJGoUWYlijLTrFnxSYqMFDEWOLJdqxRUVyVpcoX6qCdQOI1PcvKGcTjBloT5LgnPMTo9xtcU1M1Z35sTSYgtbEocO33ZcPtvqN+J9y7yesFefk6Jk3OvZKb5bM7Rez1tGL5rDHhuCJ6XE+nrHYWUNdFSpr682ZG8I44ikTLM4IkW1Nnru3VshIhRisAfpcQz0fWK2miLG3l48zEZS/OC/UKmSR8Zux27TM2sqsnYsZ7VgJZAk0jSG9z64TwgalJKIMbhJTeEE4xqmRzOMpi6FZXG2YIgjZSMavkmEmCk0zOakJo1ZSYJ2JmBdpt97FjowCui8CLeKrGG5WGoOUQlyhgRZJSatHkJG1LvWZzJJRL9HRWgOgjMGGSGGQKt2gs6LzVm0646URH0FREcjKaNh5OJ+o6eo/xQZkw6W+p8XSmApndV3FdYc/Gu/o16IyWl2BkR7bwuKQveKhbFTXChKuNnsqPQxurz32kZvkdhRHGpPHLNaH1nP6lSlJqs+DZvX10gfsQTKKiJlUMvKMKt4AwAA///qW4yyAAAABklEQVQDAO09tMHSDh3SAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "あかがけいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC/0lEQVR4ARySO48cRRSFv6rq50z39Ox4ZYwX22AsjCHBiTMyAv4GASHCBBAsEgGBkQUESPwAUseOEELCEgmkZJZYywvasdfe8bz6XdXlOw5Kqu6qe+re7xx9dO+uf/jL1/7BN5/4+1986v/5+Us/v/+9f3TvO//3j7f9Xz987v+889mrtfj1J//g7m3/+7eH/o87h/63w6+8Xq07Dq6+gXMjbO2IAkNbdqAU2huGzmBbSEcx3noeP6poVysUA60a5E6aklx4ncnlPdIr+8T7BV0UECYxg6wm8oSzjCsfXCe9eJ48Sxidi7n10Q2u3UjRxlY8Pz7mtfMZftuh8dRnC0gUXhniKAMMxV6G61qKWUqYGuQiyWiCvn7pANX20PW06xLdNGyerjl5eEqzrqiWL/D1kvrkf+y2lbqWoelYzk9ZnTxHt20tc2h0GsgLEIYx+SynfbGQ7x7tFDdvvc96vaXcrNBdQ1+WGOexg5wn53JUEhKnYxJpL85TstmU0ShjNC2IipRgkpEWhYgHKDnXUUG6PyXJculgU9NsSnQvirUVVUO5KmmqFldtMF5YdAPROOb06D+8ONNUPa6shFWFVr0T5RDfS3HT4mW+J/MzXN8RYinGifCxpEnO8dGWcZKJ1QPGGIStjCjeMiiqvsINYG3H8pmVvaauOjSOzXJFVzdsKiV5cHz48U1M2/DmxQxto4Y4CwjHY3Rs6CPNeBSSjA1JMaK4MBaoE6FrMKEmyiOYZvS+o7aNGNAFdK2jbyxRaHh2shagA7YPyJKAoB/Qks4oigiN5q2r18A65scLmlrO5CbNtkGJXfXGcflgD9d4Cc8gTgSsJbbNtgJhNZ0YlMA2Sks+OmwpNjorPyX3uy6UUjz+d45SirffESFJ3i7/3jmWmw3vvncJay0YS7mVtWM0IK8JPdc3DBKOs1NLFFmmeznoiF6K277nyXyBl3gj+15m3wl3uxGCQYijUMUMEjBBLVnXVCKa7+dipMUL2LpzTGYF3STFjPZQkzE+dLwEAAD//+7gWjYAAAAGSURBVAMAgg6VAYCddh0AAAAASUVORK5CYII="
+    },
+    {
+      "name": "くろがけいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACnklEQVR4ASySXY/cNBSGHx8nmczszk532wXKT6AIiYULRIGCVAZVqELbcofEBT+fCyrmK3Fi+/SdbSMlco6P369j277Y+t9vX/s/f937q19f+t3dT/7N1y/8i2c/+rMvf/Zvv/rOf3n+3N/+sfU/f3/pb7Zb/+Hue3/z+pXf3//mZjFTWdCHnv/2CcgM88Q4G3MuPP70itYiPgemyZhCxS3gtaEewT65bbm9XvD0FlZdz+dPL7m60Ltas1k3fPaksLmGR5vIagWbVcPNZsn6IrPsZ4TVkrNYUyDlwHHv7I8zY0qkCaYxUmvHOCWGlCk+Y43qqXA8FSzlyHE0jofMlJx/3w2YTJVslOIcVD+eqvYDBwGnyXl3gEkWWym2PBbyVCghkkplmAIhBJL8pxzAI3PJ7I6Z2U1rY39KVG0t+w5br9c0XWDROVEgi7iUzMCya1lIKjbTWaDBeaRMVq2rHrm+6Gm1b+6BSdnvhpnD4JINOXdqL0xSY5rQSQqrJvH/LnHSNGLIDLI3S4bthxH9s9udCHI/ZQHMzqzDWQ2TOy5lneSc96aUub5ZK9gqsoItDTFNDEORNKcJKmjWVbKhEVAhCho9c5keko9WUAt1RpTRdCmSMog8eRw4h2ahIwroDNZ2kdg4l2JatL3UBC6WrdgzbWdYPHspBWsDN1dGqpmk1IMXXO84jqyXCx3QpDJUXKyBtu85DQnLZuAmOU6vpSapKUCuCP2kJmeuHw+rVuaq+1KZFXqtFRvGvRxqR1/ZJLi++nWFd3mZHxjrmaCgdaFpjGKBYE4Ihi0WHW3bkEsUayHG+MG/VSw0BCEeJdWjP1hKusKhuupB/UiBHT7oFb4pvK41QtRF6k+gqK0E0mF+yMVktxFwCIEq4NYK7wEAAP//aJwRFAAAAAZJREFUAwDWA4Egru26sAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "うきしまのがけいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC/ElEQVR4ARyTS28cRRSFv67q9/R47LESRQQrxDHKAvGSkNjw+1ixQ0JIIGXDJhsEQoIFsAEUFiCRDdlAIEoc2+OxPdMz093VVd1duZ6WelO6deqc796ryhc/+XL2oz/+5xv/9O+v/Veff+IfPvjYn/z70D/+5Qv/56PP/G8/f+pP//vO//XogX/y+5e+PP7BXz773h8//dary+qcZhgw1lG7hoAWrCaMc4yraFYVtunpB0fT1uzdmLJclbTOYNsGtViU2M2Gxlk6G5FEGh1rBqXwCsJ0hPcerxV7+/vs7k9J8gyfZPJAgCqv1rStY7UwLC6XBD5EhwHVsobe01UWUzV413H71v5WLI8SRjqgvFiiLk5WPHtyzHq2oTzdUEtxLg40mkjHXM1XDM0Armcwlj9+fcx6dcXy4oos6lBJWtB2EIUjhlAxnowJYk2oNEf33yDQIVVjt2J+UHz40ftE4qAxK4ypUU0tFu3Aup4z2AolF0MRCFItCZREgjiNicep8AjRWsQlf5rmhDpBZUVG1ylaq6SwIB7FvP3uIalckgqiLELplCzPCdJ06y4pEnwSU3Utqu8iJjciwggRqRjvStZgkMgea8Vde92BTmL2AtJiux4jrqfjCXkq4oNxFEkiLga0ZGw3jqHthX5Fs15vz197fYL0eCvY1g1K6uq65vDOEcpUNct5SbsxVOWGe3dv4hqDM60IGFaXFUWaUK8aXG1o1xXnp2d0zYZQiYPDtwpWpUOrjlsHBf1gIQik3wHXn1YxO8UYN/RYcdvLPMRxiBHwmXRMnc0c2W7C/fcOeOeDe0QCZ3pzSjqdMNrd2cJMdwoyAXfdiSDLCYocASCpDMp3mqIIuHNwm5OXc5xzLGZn+M6Q56lAE0dDh6wCYgJkvtfLkuF6d4xFhWHIZJzICyOO3ryLR1GWpcDrZAorkjRgZ29MFEUEasC2Lb0sWxzlKKXkD+PtRS2Bm6ZivajpPLz4/yUnz+eCI2I+O92ycZJfBY2M+7m0tGFTnvMKAAD//zG6+xMAAAAGSURBVAMAA/CtQHxmNGQAAAAASUVORK5CYII="
+    },
+    {
+      "name": "しろいいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC+klEQVR4ARyS228bRRTGfzu7s/Y6duwkjuOaBFKnEkHtA4QHxD/JAxIPCCFFgCKVinJpU65VBX3jv6CFiMaNL3ufvU2PPavRzpkz55zvfN9Rj589t5d//GW/ffir/enJM/vw8qm9/8Nv9rsfn9oH3/9uzy8e24v7v9jzr362X37zxH59cWk/++KR/fz8kf3k0wdW1cbiOT6+71OWNU3tUMhdXhRkpiQIWngtn1Wc4FiIEgPkbPc6nJ1NUaYsiOOYxmmYL3JWy5woTMkzh3CVMbsO+ffljNPTMXemY0b7Pd45GrE7CAjaHqrf2yaXJOtArbVkhyy1LGYRrnwKy727x9R1zfVshud5ZJlhsLON47io/64WYLXArjaOaGE4+/CQjz4+5ng65PbJiDSNKYuapgGtXVqdlrTTkCQJym9b6soSLw1bgc979w42dmYKTJHhoDf8NBLdammqqmKn3xMuUhJ5o6JZQVXknN6dsDfsSJWG5XJJlhpcpcWuZEtl38Vai3SF72lcR9ESNOrWW1sM9/toMbQ8Wi5DlPKoayvVGjmrja8qwYgq1jriq+VOCzoXhbDvug7j8ZjlImR3dyBBSHCxeZjnOYsworIVnY4grArSrCSMIxzHQelWIBAbrq6u6Ha7ZFm2sYNgS3r3wPWIw1JIbMRusVYhzcJN8vVbtR4g13VZr6OjIwoZoPXZGEOeF1z/H27mQXtd/nnxSuwEk9fMXyebJOr61Q1JVvHi5Zw/n/8tzkY2Ak8JTIOjGsaTHbRn2B92GY77gsQXpKX4LKrdCUijXFhFWujg+pqqgfkyJo4y4aKi03bl32wq7vW7ksDj/Q/eZTGPUJPRkFuTAdM7B4yGfalsiaKU0ih2drc5uX2IMRmDwbbYPdZLe0pGPWF68jaqrAyeqCBycDg+YG+wxWgSMBq12d/rCtRM9Ffc3NyQJjnLVUS9RrhYEYXJWkZDtxfQ621JpZIkzQm8NtbxCJOYrEhotzVat6SNCl85Ip2iLVO7Jv8NAAAA//8qZcdPAAAABklEQVQDAOoVmoR0No4AAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "ザラザラいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADBUlEQVR4ARySyW8cRRTGf13Vy0z3rB4nMcQJAUWBcIADAgn+VkRYEglx4YQQxliWDQKkSJyIlARkhBzP2NOe6Vl6XypvpqVSqaveq+99i/r+9Kl5dHBqvjz43XxzeGqeHP1mHh/+YZ4c/2k+//nIPDo8No9/+dV8d/LUfHvyl/niB6n96dh89eOJ+frgyCjX09y+0d+uQX+HqoQ8z6mLklEwoB/0aNsul5dTOYvpdTvUlcF2PfLSRTUWZIUhKwusumI48Lm9N2T/jV2G/RYdv00raPHug3vMZ2smlyF5WtJqtdCOjSqLito0GGNo+64gBgRtH1tpQVIopfB9n/U6wfEclDaUVUU0X2BrUHGakC7XtGWkeJ2R5RWLZcxVtCDOcrKs4O9nL1jHOWmSkaW5oPvEccr1+Brlui5Br0u0WvPiv3PCaMX0es7sOqKpYSWPDocjVqsVvX53uybjEMsyGO2iAuGIfJvCXqfNw7t7WNqWAs18IY80ldxCJ+hu0adXETdvDbb3Gx2UrR2SOMNxNLao/fIiRGsLoS67g0VDJZztlkMUrVGWS3/o43oWtqPkX9ucX4wp6kYa9LZ4LYJ1Oj029JKkYhEuxMJSRJORLYdCdNrZ2UHbDWry6pI39+/QbrexbSXixPT7faIoQqtGbO3y4Ufvk4poUbTE2AVBx2M2i9jp91Ce5+PZhrLMt+i9vr8Nki/WNUqzyhLGF1N2d0fcuXtL7K55/uxC9k1PiUqzTMarqWQsx3FI1iVN02BZFrHYKUPhtvXW2rqu6foBrmczCzOe/zNG2a5BS+NArEzE56rO2aSzkFQqpSglpZs1DROuJiumV0uKtOHTz97jwf2bKNfxGYeh5LrA8zyUI0IpxQatqgrRxebflxdURcpb74z4+JP7PPxgn2vJSr7MUUWZMBT0V+cTRhKYgfhtqpqg1WYT6f/PZtx7e4/RjRaB7wo1TUs7oAyJ0FZG7FMaQTScnZ+xXC7Z5KDT8ZFw0PItsmJBt+uhnIarcMIinRNOl1g64zUAAAD//2UzSJYAAAAGSURBVAMAMMGVfxqofUoAAAAASUVORK5CYII="
+    },
+    {
+      "name": "うすちゃいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC+klEQVR4ARySSYskRRTHfxm51JJZ1bVNNS3Toy0NaqMoI34RPTQoyhxUBrEvguDB5SSIH0G8iDfHg8xFPCjMxa8hyAwzvXctuUZkvHlVCUFmRrz4b++ZRz98Jv98f18efHEsf373qfz944n88fXH8te39+ThNx/Jgy8/kN+/uie/nBzLbyfv6/+H8vP9d+XXz4/lp0/eE1PWNVEUkaYpEnjysqAVR954kIRBb0Ci+7gAbwKKVUkcwGza4e6rY4xDWJQ5w9mI80XB8sqxurE0tefs4pon5xc8Oy05fHnAwZ0BoyHMZxvghE5ngBmOM6yLePzkktAJ3juK0rFYtgReiIKAN18ZYa0jL1r6/YxKz6djRQoDzNNnS9q2pbW6JGS1rHjnjTlvH405fHHMwf6I61VOXbWs10uyLGM8yiiqRoFaTE88zgcsLnOynuetowlNU2Hx1I3Tb0dXc0CfOFaC1YrxeKSknqopMYulR+qcw4MRk53u9lJZOYq80qKWJEn0XavfDsZEiAapPtWSJQhizAvTkN1JXw8NYRhTqbSNJauWNmuTyQbEOUetHfNNjUirgL3tHRMkGpS2cTIZkuc53W6iyAGlFm5bu8klrzek2wDjpE9eWxoliCKDSWJhrb0vioq421FpslUxTIdbJucaLq5KlmvNKOsjvmGj5qZcUpY1JtAAE/VSFAUv3X1dASxxHFOrldpZTs8rylzo9lL++/+Us6ua9VJY6V7VWMz5jaO0Vlka/n34iKbSiWuFUOVdntW0vmB+KyM2lp0sZjpJ1YraLCtEO2jSXlfZ2m0gSdJVG7ECOi6va5XqCXScs7TV4nCbw+5sSBhUvHZ0m3LlMLNhwu6tHocHU2VKldmzKkQHS5jvjdjfT6mtkA2SLbu0jkhDt5Vl/84OJgwD9RcrumVvb8x00OX2vMtoBP0OlIVDdFKXi4pSL+VlSdE0LFZrnUSPaVzFMAqZ9hOsDzm7ETphRBB3tNDSBoYwCdgEK6HDS0UaJ0gkYFqeAwAA///RjgBbAAAABklEQVQDAA1gsNKAx2XTAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "あかいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC0ElEQVR4ARySyY4cRRRFT0wZOVVVDzYgvGNjNkis+AVwlw3Com2JvzByIwQLlvwkICFabrsx3VVZQ44R4Ve1y4x478W75179x+WL9OrJ1+lq+TT98t0yvbpYptfPvk0/XVzI+ZN09fSbdPVsmX67/CH9/vJl+vXFj+nn58/T6+X30nOZdFDw6PSMB3VJbjw6JeI4UhjDWVlS+wqvDJt1Q4iJKoMUBrIsI6oO7Z1hGAYmFM6oY9MnpzXnJzVl4fDGclLP+PTshGa14/Z+g0oa7wNehuhumBiNQxlNXdcsTudUVYVzDi3nWVlgc0/XTmgVSFLftCPr/QRGzsYgA/oeXzq60DPEQDslGmlY7Qd6kfTX9Q2tUozSM4aIFil9P3K33qNHacjynPV6zc3bezbdxM12w2q3w2aO3Tgwm1WM/UBeeqy17LsBQ0JGoWflTD5HDhtF62XQDtMnjKzfbHaoKWIEKGj2MmTfBha1w4RAJtvpw+UYNNMY8NpS+IwkF6M4cdhuFMDEEV9YRC291C68wViNswbtBdh9s8M5zySFByYHfVYGlT4nmoz/Vg2CnpAi3hk6YVSIQxxE/PnP3zwQ8kZs9N4ftfo6RwkooyET8l998bmsnEhRodKE9Zb1pmVe5Oiz03OsTsQYj3koJTxBIE3TRIhayAeur6/JMk0lg63TvHm/BXlwCi16EjCZjmh5zYmMVv6jXFotAetaEHhOQO/F0jgFqdNoVbCTq3d3ExoBZpWh9o695ECphDEGpRTGaYJ41Mu66y7RiANdOwhwxZePP+aQWN0L5bfbjhBG5nl2bDy6IMg7SU4h0P6VCO9ks/Nc89lHJY8f1dz+v5XADWiXWZIUvrnbMKsss3kpGyiccywqz7tm4OGi4OE8Y1ZbdJUzCUilNEqg6kyyzagwAuz97ZZts+bgxvxgkxQUKRD7lsxakP/tqmeSLIwihxj4AAAA//8pGxBHAAAABklEQVQDADz2fV/ck2jLAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "きいろいいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAC60lEQVR4ASSTW4scRRTHf11dXd09Pdcdh0yCu+yaoJInL19ACBIRUfBB8Hv6EPFNDGF1Qxby5A3ExKxmzM6tZ7qru7orZzoNRTfVp/7nfzmlLp586R89uuefXH7mf3jwqf/l/Gv/+OIb//jnb/2D72Tv+0/8xcXn/unTr/z5+X1/eflFt3768b5/+PCeV28dxcxnQ8ajgHffzwi1Q9OyWq3QpmB2o08YhrIijNFobWgbRZ6XnJwNUfkGrpeeojRcrx3OOZ5dLaiqPbN5hlJKDmmstVS2pdhb4iRifnOC9iGq8TXDcYTdOYLQo0J4+zjjxq2UzcrialCqJY5jDv8goLB7+XbkW6l3dchuV9B4ReBMR9OYhENnT8NquZVV8PLfLU2tiBONqxrSXkJZO1QUO+q6IdQtra/wPhDkUmgLWJQwmfbZirTtumG92ndA14uS9bIUuS3KN0aKNW3bUpalmBUQmYD9ru72XzxfMjoKeOdO0oG3TcB7d2/SSwN6wkJVbkVlHU3jSdNMACIW/206p1/9n5NlMUZ75vMhH3w04MOPh9TlUuhXXRPlKsNwdNBMBwSOpDdgl4s+BUo3YnLcFVf1SFhqJpMp01GPqYyACqOKxWJJFMUddSdGlZJI6wuKwtJLQgZZH9+G5FsrwJZN4dhJpBxiDJQWmhmxSakrePWy7t5Gkji9PeT0bM6hEBXIbFjxqi8SAow03NtSGIZBl8Cz51fsc89mbRlOPbNZRJIa/pGhWixznJid9VMqtyRQtbCrsaVHhSoV+iGZONrrw/w4YDrR3V6+LTHCxBjDH7//xWq5QSnDfl+J6Q2HR1lbiLY3aPmm5cXfpUyalVnf4yQdV5UErefkZMx42MP7Bh0aUaTRkUJdr0sKMa2yntLuuHM3Fs3RAZzBICPNMlqJOEm1zGVDXlSoKKX1h+gb1NWffWzlOT474vT2LYpS4eU+1gHIveG3X3fkO0+jEypJaDges9ltxDeDq2NeAwAA//+WjPcmAAAABklEQVQDAGRtlWOapB30AAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "くろいいわ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACpElEQVR4ARyTiVIcNxCGPx1z7Q67S/ABASeAY4xD3v+RnHLZRQE7O5eOds+oSpqRSt39Hy37dP9V/v30IE9/fZXH63/k4fqzfL66ky/6vb+8k/vLWz3/It/+vJP/Pt3L082dPN7cysPVrXz7+1GsM5YkkTkJbz3088yx70kI6DS67s82+LJmniNVUdP6LVWzgTxhQ0hMI3Rdx8eLiusPB67en1OYTFVVtG3LNE14m9nvt4QU1/1y1pQV1ruGLBMfD1uy1l0SSs6E6HROenlgjIEYM90YKOsNuRQOSzLJ2CXT5cVOoQeGYeJ4mvn+/1ErC7u61MqO0yiE7BBb8dr19H3meAxoHayJ8NxbTqEkpBpjHDeXe5gFay1WNThrMk3tMHmgLoxSS3iXkZSxs/5M3cC2iVR+4LB1GpjJYijLDbqhKFv6caIsFIXSLIqCbe3JCsG2m5oPf9SklKjKhpdjR+FK2rphCJGsiMIcV6d+/AqEYFTghp/PHcZ5rGpDEEOtii4ZvbFq18yYBaMieYcmLmiqDZVW7UbH99dMsjt0wYYwafZJuTqm4CnU3+w9o1ZPmFX9ORp1wyIp0G4SMj9zaIMKP2Lfbw8r5JgTvkgsQ0SW0BVJzIFTf2TXWN7tKxbvL843HLVvVpFPx2ckCt5bCg/OuTWwLM6IyrdtPPdX7xRJZFbHyLOKWbNpt2xqg93uztRfu/bAOAhvbx2imoSktFxi6hM/X0/0U69UYamKjrGfqJzFvvRRKw5Kw6pdylPBq368vEZVPHKaswbJimzsR4YpMY4z3hZgCmzWTorB6YVitTLpo+pPUftelG/Jeev1XDRZQcZrgkyICesNYgxW0gyV0GtXTXNaO+3QGlU4a8sI0VoNFH0Dif3OU1Z2tXPRqjuN/AYAAP//c5lkuwAAAAZJREFUAwDTrIW+OMwrmAAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "コケつち",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACiklEQVR4ASST227cRhBET/dcyF3JgvwldiIBQfJRQRAbch6CAPGDYMEIkL/MQ4JY0GrFXXIuLtJDEORwuqu6q5p+9/lt//Bw0//466d+9+m23z380H/+801/9/G7/uv9m/7+/rb/9vn7/u7htv/y8e0W+/7TTf9wf9N///vH7kPKBAyzzpCMGIzdOEJwckyM+4BVw4G5VaZToZSCReN8nvDojajE1otCwEMTWMW1Vxz//7cwzZUQAteXO6Ke9MDLy4lhGFC6K8G25Lo0ygKlddyjGBvjzsGcVjp5TLgyVsIYM8u5CaChZd/KcicmiG40U9JSMDopRZV75ng44WuMzoch0Xvf9gTv5JwpvVGLKbDxdJwJwbVvpOhcXK4JRq2dZenSbQUO+KCyogKGbIy7xFILhM5+DCB+icS6ZiW5hLPgWHJOqs7jsrYg1qaPOkDoMkGMRk5JrTc1UDkeJ2SA9Gnqe6a1RhAIteHmUaUGcSW0FWKSVQtzmRiyWliZ1HdbXZkbp3ORrSIVmcedAOa+CfF8WDZRHo9HzDqryi/PlaUJ3FRRDOTBuLjYi9BIKWzC+vG8cDoWlVc5PM3sd5FXV3vWdflq4Ep3GpyUA6jGIB3AdZly9Hx8fOKff79QqLJPzAochyAGo5oTNVhZbK26KguYnHKBuNpaZ8Svri9k0UhWv9evdwoy5ulEl1BZbqCp6/J7WRYQb5K42W2bm3me9SUY168Hdvsoa2ZSiGLNrPNf5c5UZqaXhW1wVogumJiZpjOHgwCSR6rQl5OC5H3KEPeuBMNKI3liLfd8rqyMz8+n7T+IOWluos5qwuJAyBlD7xZpBaree0gscxPvCN1wG4QeWGdtzAO97vkKAAD//9Mkn0IAAAAGSURBVAMArbI9AdJW+OAAAAAASUVORK5CYII="
+    }
+  ]
+},
+    {
+  "paletteName": "その他①",
+  "blocks": [
+    {
+      "name": "ざらざらカベ",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADA0lEQVR4ASyT22/bZBjGf/7s+JCz0xxaWLdRWk38tVzCVImLSUhwBdwgsbVAueCgSXBXCSEB2dom6XJwYjt27Djf3njzJ0uWX+l9n+f3vJ/67dev9B+/f62//e5TffXTU31x8bl++fJL/cvVM/3ixVP9/IdzffXzM/3988/0xeUXZe3qx3N9eXmu//zrG60moztWwZx2u4Pr1DHl7AqLbqeNbdt0ey2i1RK/Wme9CjBNh5ubG4ydJlhMUL7v02o1SKOQzWaDV68xmUy4m4xZLeb8ff0P2bYgThPq9SrTyZRu9xDP84iiFBXHIdqoyGuS7wqG/w6JwyWD7oCjo2MeP36I41osg5As21LI8TyH9TqlUXNQg8GAKHyDUzHpH3Q5Ozvj5OSEUJpkWcrOgHbdx3Mq0iTCsx3SNGW5nGFgokajCVXPJy8UQRCQ5wlaabbbTCZmbNYJVkXjVSucfHxMHMeiQfPkySdS36I6AmtnbLEtLcVQfK25fXWL5dhYllV6jaOsBLwf1u8f0mkeMJ1OcUSVGo/vydOcJNkIdZdGy6fdbnM/GjML4lLVOgn5/79RqWIazIjiBf1+n90OlG1bKKXE1xpDFYxvR+J7h1tt4oiqoihotFs8eHQksa3fp1UwGo1YSawKedIioem3Uca73LeShi5yEGuu6xLMpoQCrdVq4dZcms26RJ7gutU9gw4Pjx6VRPc8LMumWW/h+wflPwEty2OW9rqDjijd0mg0+PD4I6pVaZDnOdfX17iexa3INwyN0jtJYyMQbWzlCcgatqMosoLDXl94xSxmbzDEstqv6+npKTW3htZa8k/E60w8TjAMkyzfkOaZRN0kXIesNyn3k4VYkAGmi5rP5yizKCM0TYNW2xM1DY4eDCRK9W4fkpRgOaWiKtimolpzcF0b0zRRvV6PxTKSjrnQhyAIhO5KrBtYCrknPp1Oh4ZwqdVq5bctyaV5KjzkLmx3kCVZuRSHvQ9wnSoNgZSmGQYOe1CWMomiiNd3Q4bD11QqXsllr+ItAAAA//+dl3rDAAAABklEQVQDAAI+g0fKiHTEAAAAAElFTkSuQmCC"
+    },
+    {
+      "name": "ポケセンのカベ・まんなか",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACFUlEQVR4ATSSDW7VQAyEv7GTB0dHIEpBXIj+Ie5QqYUijgDlJbtmnIqNrN21x+NZO/F4dVnfr98f9nT7sX7cXNbPu8/1eHtRD1/fVfuerj/V49VF3d+8qYe7C/s+1P2Xt/Xr2/uKqZ0xbZpsdWb4vtUzc9/QTHb+cub34Q8E+27f4LQkz9skikmpQ0GvMmiMQWVSVVArChvhQkY4sf37LMY+iSiIlMEinYwDoSTDPpWTJ2wmNFlqhX04dnISLGsSMuMcRQTWIppMPleNA1xOkLKlUhY/ETXODWbOab+ZO2H329pRflcTzmGyZUW5gKzAisJVwjRTHGux5shMagYdlCsdEUuHOI5N2gmSkH3Kk/GAMaYlumFoOxyKHa3/yXRIZG6uU13Xthvn+xJknIgUIYkqga2V1AS5kbM2Wq78jCGrMY5orDuxn93LP54CRCdEJpLNuJ4KHlsTkqaoQiZ/MQOAJV+ZayXCBNPdDhlkK4PLsxhjI006rKQLpH+yjnU/em9M72bGHDA8xu6FfC0FYeoGq44wo3cXoNJPTUJuvFU1uV8VZCxIiQURWQz/2n2WiibDY8TJgZttFHMgWXXtRMvAgMhB70dlK+hzdv/9rJgriulmm5Dh6bxMAy93Sd44gowdTZFW05XHfH7xLwV7oXzNVKe04tVJSfhuRo7VwUH5m+BAhQH9JDeVRZSVuq8Q0PuM4h8AAAD//8BaY1kAAAAGSURBVAMAx2Nj93pgl3MAAAAASUVORK5CYII="
+    },
+    {
+      "name": "レンガのゆか",
+      "image": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAADQUlEQVR4ARyT209cVRTGf3ufMwOCBE0JUEWs1lIxLaURtIlWY19UXjTGpDE2mlgTFX3QJx+M8VXtU9X/QqvxzcSkaRFCuZSZCsOtCAgtM4dhLswwtzPn7N01rOTk7L2ybt+3vq2vfXvRJq6O2sQvo3bqh8v24Pdv7PiPH9v5n0btn999YP/4asT+9sl5e+3T1+zVi2/aG1cu2+vfX7I3r3xof/78HavdwHJ3O8XaukfKy/PXzSUyqYzck3jJIq6jCI2D0i6lukGlPYyXJkh6JP/LobXrYEJNw4wyaCRIOVhtKddC+cBRmjAMqdRqIH4XiwoNHQ+3o+fmd3BsgG/q5LM1lDVIRVRgWN3IkCvXKJUarjrFcoUwCLBSEK1IF330haFnGBw4yvBAD/397Rw52sap/m7OPtfNl++dYeTlPi68/iznXurjo7eHaDIWowKkDY80yUD7hSzxmVXi08usreyR3t1nYmye2dgqsblFbk0uMTWxyNTkOnc3PKwTRQkniLU/qtGh04YwRV1GVzqgJDhbW1wcFBFXo7WwYhVKKTKFEtWgjqsdtBSIREHvZXap+4JFAjQu6T0Zz7H4cq+G4AN16RhIxr8bBbx9RU3IDqxmak220N7aetjFWkki4PmBXt549UWGT53g8ce66erq4vSZ47ww2MfXl84yOHyMzt4neerpHkZe6UM3OQYjydYobNiM8kvMTMfZ2tikks+jWppI5cqs71VYShbY9oqkC1U2ZQO34il0Rei0shLlaMHso2hCamHE3zjs7uYPz4Ffp2EN3TT+RgICE6I37xcpC9YiUWYSKSp+BW1clAoRPRFbzTJx+x7xlSxTd5LEFjxmJW72zg4dnQL/ZKdm6GQnp59o5ov3z9EmyhQVgfBcqDh89tYgA70uJzotw8e7efd8D8c6Avp7ogwfkWYEIasrHlvbReZi/xONRvFFhQ0YlbDOzPw6yOpMtcrt5W1i8S0c3xJWauQLNXRgjYhDizwNoVOTh+PjRjSu0rREFNHmiEidQ3MjLfhC+kPNUYQyUbzoZCJR5sZCjusLWcZXooyv5/hnWfHrZJa/E8LPQQnlKrQIqlyqMr1YYEdIG1tIMZY44AEAAAD//9XmV6YAAAAGSURBVAMAxqComz0/+/kAAAAASUVORK5CYII="
+    }
+  ]
+},
+
+
+];
+
+
+// ========== State ==========
+let blockCategories = [];
+let masterBlocks = [];
+let layers = []; // Array of layer objects
+let currentLayerIdx = -1;
+let generatedPhases = [];
+
+const CELL_SIZE = 20;
+const tempCanvas = document.createElement('canvas');
+const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+let globalDotWidth = 32;
+let globalDotHeight = 32;
+
+// ========== Sort order (same as original) ==========
+function getSortOrder(categoryName, blockName, indexInPalette) {
+    let base = 90000;
+    if (blockName === "ざらざらカベ") base = 10000;
+    else if (categoryName === "木のはしら・まんなか") base = 20000;
+    else if (blockName === "ポケセンのカベ・まんなか") base = 30000;
+    else if (categoryName === "わたのゆか") base = 40000;
+    else if (categoryName === "フカフカじゅうたん") base = 50000;
+    else if (blockName === "レンガのゆか") base = 60000;
+    else if (categoryName === "地形ブロック") base = 70000;
+    return base + indexInPalette;
+}
+
+// ========== Init ==========
+window.onload = async function() {
+    if (MY_JSON_DATA && MY_JSON_DATA.length > 0) {
+        for (let data of MY_JSON_DATA) {
+            if (data && data.blocks) {
+                let category = { categoryName: data.paletteName || "追加ブロック", blocks: [] };
+                let idx = 0;
+                for (let b of data.blocks) {
+                    await addBlockToCategory(category, b.name, b.image, idx++);
+                }
+                blockCategories.push(category);
+            }
+        }
+        updateMasterBlocksArray();
+        renderBottomPanel();
+        document.getElementById('paletteStatus').innerHTML = `✅ <span style="font-weight:bold;color:#27ae60;">初期パレット（${masterBlocks.length}ブロック）</span> 読込完了！`;
+    }
+    // Start with 2 layers
+    addLayer();
+    addLayer();
+};
+
+// ========== Block palette ==========
+document.getElementById('paletteInput').addEventListener('change', async function(e) {
+    for (let file of e.target.files) {
+        try {
+            const data = JSON.parse(await file.text());
+            if (data.blocks) {
+                let category = { categoryName: data.paletteName || "追加ブロック", blocks: [] };
+                let idx = 0;
+                for (let b of data.blocks) {
+                    await addBlockToCategory(category, b.name, b.image, idx++);
+                }
+                blockCategories.push(category);
+            }
+        } catch(err) { console.error(err); }
+    }
+    updateMasterBlocksArray();
+    renderBottomPanel();
+    document.getElementById('paletteStatus').innerHTML = `✅ <span style="font-weight:bold;color:#27ae60;">計${masterBlocks.length}ブロック</span> 登録済み`;
+    processCurrentLayer();
+});
+
+function addBlockToCategory(category, name, src, indexInPalette) {
+    return new Promise((resolve) => {
+        let img = new Image();
+        img.onload = function() {
+            tempCtx.clearRect(0, 0, 16, 16);
+            tempCtx.drawImage(img, 0, 0, 16, 16);
+            const data = tempCtx.getImageData(0, 0, 16, 16).data;
+            let r = 0, g = 0, b = 0, count = 0;
+            for (let j = 0; j < data.length; j += 4) {
+                if (data[j+3] > 128) { r += data[j]; g += data[j+1]; b += data[j+2]; count++; }
+            }
+            if (count > 0) { r = Math.round(r/count); g = Math.round(g/count); b = Math.round(b/count); }
+            let sortVal = getSortOrder(category.categoryName, name, indexInPalette);
+            category.blocks.push({ name, src, img, r, g, b, isAllowed: true, isVisible: true, count: 0, displayNum: 0, globalIdx: 0, categoryName: category.categoryName, sortValue: sortVal });
+            resolve();
+        };
+        img.src = src;
+    });
+}
+
+function updateMasterBlocksArray() {
+    masterBlocks = [];
+    let idx = 0;
+    for (let cat of blockCategories) {
+        for (let block of cat.blocks) { block.globalIdx = idx++; masterBlocks.push(block); }
+    }
+}
+
+function clearPalette() {
+    if (!confirm("パレットをリセットしますか？")) return;
+    blockCategories = []; masterBlocks = []; generatedPhases = [];
+    renderBottomPanel();
+    document.getElementById('macro-result-area').style.display = 'none';
+    layers.forEach(l => { l.mappedPixels = []; });
+    reRenderCurrentCanvas();
+}
+
+// ========== Layer Management ==========
+let layerIdCounter = 0;
+function addLayer() {
+    let id = layerIdCounter++;
+    layers.push({ id, label: `レイヤー ${layers.length + 1}`, sourceImage: null, mappedPixels: [], dotWidth: 0, dotHeight: 0, thumbCanvas: null });
+    renderLayerPanel();
+    selectLayer(layers.length - 1);
+}
+
+function removeLayer(idx) {
+    if (layers.length <= 1) { alert("最低1つのレイヤーが必要です"); return; }
+    layers.splice(idx, 1);
+    if (currentLayerIdx >= layers.length) currentLayerIdx = layers.length - 1;
+    renderLayerPanel();
+    selectLayer(currentLayerIdx);
+}
+
+function selectLayer(idx) {
+    currentLayerIdx = idx;
+    renderLayerPanel();
+    document.getElementById('canvas-label').textContent = `現在のレイヤー: ${layers[idx].label}`;
+    document.getElementById('current-layer-info').textContent = `選択中: ${layers[idx].label}`;
+    reRenderCurrentCanvas();
+    drawRightLegend();
+}
+
+function renderLayerPanel() {
+    const list = document.getElementById('layer-list');
+    list.innerHTML = '';
+    layers.forEach((layer, i) => {
+        let div = document.createElement('div');
+        div.className = 'layer-item' + (i === currentLayerIdx ? ' active' : '');
+        div.onclick = () => selectLayer(i);
+
+        let numDiv = document.createElement('div');
+        numDiv.className = 'layer-num';
+        numDiv.textContent = `🖼 レイヤー ${i + 1}`;
+        div.appendChild(numDiv);
+
+        let thumbCanvas = document.createElement('canvas');
+        thumbCanvas.width = 120; thumbCanvas.height = 60;
+        thumbCanvas.style.cssText = 'width:120px;height:60px;image-rendering:pixelated;border:1px solid #ccc;display:block;background:#ddd;';
+        layer.thumbCanvas = thumbCanvas;
+        div.appendChild(thumbCanvas);
+
+        if (layer.mappedPixels.length > 0) {
+            drawThumb(layer);
+        }
+
+        let labelDiv = document.createElement('div');
+        labelDiv.className = 'layer-label';
+        labelDiv.textContent = layer.label;
+        div.appendChild(labelDiv);
+
+        let uploadDiv = document.createElement('div');
+        uploadDiv.className = 'layer-image-upload';
+        let input = document.createElement('input');
+        input.type = 'file'; input.id = `layer-img-${layer.id}`; input.accept = 'image/*';
+        input.addEventListener('change', (e) => handleLayerImageUpload(e, i));
+        let lbl = document.createElement('label');
+        lbl.htmlFor = `layer-img-${layer.id}`;
+        lbl.textContent = layer.sourceImage ? '画像変更' : '📁 画像選択';
+        uploadDiv.appendChild(input); uploadDiv.appendChild(lbl);
+        div.appendChild(uploadDiv);
+
+        if (layers.length > 1) {
+            let delBtn = document.createElement('button');
+            delBtn.className = 'layer-del-btn';
+            delBtn.textContent = '×';
+            delBtn.onclick = (e) => { e.stopPropagation(); removeLayer(i); };
+            div.appendChild(delBtn);
+        }
+        list.appendChild(div);
+    });
+}
+
+function drawThumb(layer) {
+    if (!layer.thumbCanvas || layer.mappedPixels.length === 0) return;
+    const tc = layer.thumbCanvas;
+    const tctx = tc.getContext('2d');
+    const W = layer.dotWidth, H = layer.dotHeight;
+    if (W === 0 || H === 0) return;
+    const scale = Math.min(120 / W, 60 / H);
+    tctx.clearRect(0, 0, 120, 60);
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            let idx = layer.mappedPixels[y * W + x];
+            if (idx !== -1 && masterBlocks[idx]) {
+                tctx.drawImage(masterBlocks[idx].img, x * scale, y * scale, scale, scale);
+            }
+        }
+    }
+}
+
+function handleLayerImageUpload(e, layerIdx) {
+    if (!e.target.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        let img = new Image();
+        img.onload = function() {
+            layers[layerIdx].sourceImage = img;
+            layers[layerIdx].label = e.target.files[0].name.replace(/\.[^.]+$/, '');
+            processLayerImage(layerIdx);
+            renderLayerPanel();
+            if (layerIdx === currentLayerIdx) {
+                reRenderCurrentCanvas();
+                drawRightLegend();
+            }
+        };
+        img.src = event.target.result;
+    };
+    reader.readAsDataURL(e.target.files[0]);
+}
+
+function handleImageUpload(e) {
+    if (currentLayerIdx < 0) return;
+    handleLayerImageUpload(e, currentLayerIdx);
+}
+
+// ========== Image Processing ==========
+function updateSizeInputs() {
+    const m = document.getElementById('sizeMode').value;
+    document.getElementById('widthInput').disabled = (m === 'height');
+    document.getElementById('heightInput').disabled = (m === 'width');
+}
+
+function resetFilters() {
+    ['fltBright','fltContrast','fltSat'].forEach(id => document.getElementById(id).value = 100);
+    document.getElementById('fltHue').value = 0;
+    document.getElementById('fltBlackPoint').value = 0;
+    updateFilters();
+}
+
+function adjustFilter(id, delta) {
+    const s = document.getElementById(id);
+    s.value = Math.max(s.min, Math.min(s.max, parseInt(s.value) + delta));
+    updateFilters();
+}
+
+function updateFilters() {
+    const vals = { fltBright: '%', fltContrast: '%', fltSat: '%', fltHue: '°', fltBlackPoint: '' };
+    const vids = { fltBright: 'valBright', fltContrast: 'valContrast', fltSat: 'valSat', fltHue: 'valHue', fltBlackPoint: 'valBlackPoint' };
+    for (let id in vals) {
+        const el = document.getElementById(id);
+        const vel = document.getElementById(vids[id]);
+        if (el && vel) vel.textContent = el.value + vals[id];
+    }
+    processCurrentLayer();
+}
+
+function updateZoom() {
+    const scale = parseFloat(document.getElementById('zoomSlider').value);
+    document.getElementById('zoomValue').textContent = Math.round(scale * 100) + '%';
+    const c = document.getElementById('outCanvas');
+    c.style.width = (globalDotWidth * CELL_SIZE * scale) + 'px';
+    c.style.height = (globalDotHeight * CELL_SIZE * scale) + 'px';
+}
+
+function processCurrentLayer() {
+    if (currentLayerIdx < 0 || currentLayerIdx >= layers.length) return;
+    processLayerImage(currentLayerIdx);
+    reRenderCurrentCanvas();
+    drawRightLegend();
+}
+
+function processLayerImage(layerIdx) {
+    const layer = layers[layerIdx];
+    if (!layer.sourceImage || masterBlocks.length === 0) return;
+    const activeBlocks = masterBlocks.filter(b => b.isAllowed);
+    if (activeBlocks.length === 0) return;
+
+    const m = document.getElementById('sizeMode').value;
+    const aspect = layer.sourceImage.height / layer.sourceImage.width;
+    if (m === 'width') document.getElementById('heightInput').value = Math.round(document.getElementById('widthInput').value * aspect);
+    else if (m === 'height') document.getElementById('widthInput').value = Math.round(document.getElementById('heightInput').value / aspect);
+
+    const W = parseInt(document.getElementById('widthInput').value);
+    const H = parseInt(document.getElementById('heightInput').value);
+    globalDotWidth = W; globalDotHeight = H;
+
+    tempCanvas.width = W; tempCanvas.height = H;
+    const b_val = document.getElementById('fltBright').value;
+    const c_val = document.getElementById('fltContrast').value;
+    const s_val = document.getElementById('fltSat').value;
+    const h_val = document.getElementById('fltHue').value;
+    const bp = parseInt(document.getElementById('fltBlackPoint').value) || 0;
+
+    tempCtx.filter = `brightness(${b_val}%) contrast(${c_val}%) saturate(${s_val}%) hue-rotate(${h_val}deg)`;
+    tempCtx.drawImage(layer.sourceImage, 0, 0, W, H);
+    tempCtx.filter = 'none';
+    const pixels = tempCtx.getImageData(0, 0, W, H).data;
+
+    layer.mappedPixels = [];
+    masterBlocks.forEach(b => b.count = 0);
+
+    for (let i = 0; i < pixels.length; i += 4) {
+        if (pixels[i+3] < 128) { layer.mappedPixels.push(-1); continue; }
+        let pr = pixels[i], pg = pixels[i+1], pb = pixels[i+2];
+        if (bp > 0) {
+            pr = Math.min(255, Math.max(0, (pr - bp) * 255 / (255 - bp)));
+            pg = Math.min(255, Math.max(0, (pg - bp) * 255 / (255 - bp)));
+            pb = Math.min(255, Math.max(0, (pb - bp) * 255 / (255 - bp)));
+            pr = Math.round(pr); pg = Math.round(pg); pb = Math.round(pb);
+        }
+        let minDist = Infinity, closestIdx = -1;
+        for (let j = 0; j < masterBlocks.length; j++) {
+            if (!masterBlocks[j].isAllowed) continue;
+            let dist = (pr - masterBlocks[j].r)**2 + (pg - masterBlocks[j].g)**2 + (pb - masterBlocks[j].b)**2;
+            if (dist < minDist) { minDist = dist; closestIdx = j; }
+        }
+        layer.mappedPixels.push(closestIdx);
+        if (closestIdx !== -1) masterBlocks[closestIdx].count++;
+    }
+    layer.dotWidth = W; layer.dotHeight = H;
+    
+    let d = 1;
+    masterBlocks.filter(b => b.count > 0).sort((a,b) => a.sortValue - b.sortValue).forEach(b => {
+        b.displayNum = d++; b.isVisible = true;
+    });
+    masterBlocks.filter(b => b.count === 0).forEach(b => { b.displayNum = 0; b.isVisible = false; });
+    
+    drawThumb(layer);
+}
+
+// ========== Canvas Drawing ==========
+function reRenderCurrentCanvas() {
+    if (currentLayerIdx < 0 || currentLayerIdx >= layers.length) return;
+    const layer = layers[currentLayerIdx];
+    drawFinalCanvas(layer);
+}
+
+function drawFinalCanvas(layer) {
+    const c = document.getElementById('outCanvas');
+    const ctx = c.getContext('2d');
+    const W = layer.dotWidth || globalDotWidth;
+    const H = layer.dotHeight || globalDotHeight;
+    c.width = W * CELL_SIZE; c.height = H * CELL_SIZE;
+    ctx.clearRect(0, 0, c.width, c.height);
+    if (!layer.mappedPixels || layer.mappedPixels.length === 0) return;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = 'bold 11px sans-serif';
+    for (let y = 0; y < H; y++) {
+        for (let x = 0; x < W; x++) {
+            let idx = layer.mappedPixels[y * W + x];
+            if (idx === -1 || !masterBlocks[idx] || !masterBlocks[idx].isVisible) continue;
+            ctx.drawImage(masterBlocks[idx].img, x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            ctx.fillStyle = 'white'; ctx.strokeStyle = 'black'; ctx.lineWidth = 2;
+            ctx.strokeText(masterBlocks[idx].displayNum, x * CELL_SIZE + 10, y * CELL_SIZE + 10);
+            ctx.fillText(masterBlocks[idx].displayNum, x * CELL_SIZE + 10, y * CELL_SIZE + 10);
+            ctx.strokeStyle = 'rgba(0,0,0,0.3)'; ctx.lineWidth = 1;
+            ctx.strokeRect(x * CELL_SIZE, y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+        }
+    }
+    // grid
+    ctx.strokeStyle = 'rgba(0,0,0,1)'; ctx.lineWidth = 3; ctx.beginPath();
+    for (let x = 0; x <= W; x += 16) { ctx.moveTo(x * CELL_SIZE, 0); ctx.lineTo(x * CELL_SIZE, H * CELL_SIZE); }
+    for (let y = 0; y <= H; y += 16) { ctx.moveTo(0, y * CELL_SIZE); ctx.lineTo(W * CELL_SIZE, y * CELL_SIZE); }
+    ctx.stroke();
+    updateZoom();
+}
+
+function drawRightLegend() {
+    if (currentLayerIdx < 0) return;
+    const layer = layers[currentLayerIdx];
+    const list = document.getElementById('legendList');
+    list.innerHTML = '';
+    document.getElementById('series-summary').innerHTML = '';
+    if (!layer.mappedPixels || layer.mappedPixels.length === 0) return;
+    
+    let used = masterBlocks.filter(b => b.count > 0).sort((a,b) => a.sortValue - b.sortValue);
+    used.forEach(b => {
+        let item = document.createElement('div'); item.className = 'legend-item';
+        item.innerHTML = `<div class="block-num-badge">${b.displayNum}</div>
+            <img class="block-img" src="${b.src}">
+            <div class="block-info">
+                <span class="block-name">${b.categoryName} (${b.name})</span>
+                <span class="block-count">×${b.count}</span>
+            </div>`;
+        list.appendChild(item);
+    });
+}
+
+// ========== Block Panel ==========
+function renderBottomPanel() {
+    const area = document.getElementById('masterListArea'); area.innerHTML = '';
+    blockCategories.forEach((cat, catIdx) => {
+        let box = document.createElement('div'); box.className = 'category-box';
+        box.innerHTML = `<div class="category-header"><div class="category-title">${cat.categoryName}</div>
+            <div class="category-actions">
+                <button onclick="toggleCategoryAllowed(${catIdx},true)">一括ON</button>
+                <button onclick="toggleCategoryAllowed(${catIdx},false)">一括OFF</button>
+            </div></div>`;
+        let container = document.createElement('div'); container.className = 'master-blocks-container';
+        cat.blocks.forEach(block => {
+            let item = document.createElement('div'); item.className = 'master-block-item';
+            item.innerHTML = `<label><input type="checkbox" onchange="toggleBlockAllowed(${block.globalIdx})" ${block.isAllowed ? 'checked' : ''} style="margin-bottom:3px;">
+                <img class="master-block-img" src="${block.src}">
+                <span class="master-block-name" title="${block.name}">${block.name}</span></label>`;
+            container.appendChild(item);
+        });
+        box.appendChild(container); area.appendChild(box);
+    });
+}
+
+function toggleCategoryAllowed(catIdx, state) {
+    blockCategories[catIdx].blocks.forEach(b => b.isAllowed = state);
+    renderBottomPanel(); processCurrentLayer();
+}
+
+function toggleBlockAllowed(globalIdx) {
+    masterBlocks[globalIdx].isAllowed = !masterBlocks[globalIdx].isAllowed;
+    processCurrentLayer();
+}
+
+// ========== 3D Macro Generation ==========
+function generate3DMacro() {
+    const validLayers = layers.filter(l => l.mappedPixels && l.mappedPixels.length > 0 && l.dotWidth > 0);
+    if (validLayers.length === 0) {
+        alert("少なくとも1つのレイヤーに画像をアップロードしてください！"); return;
+    }
+    
+    const buildDir = document.getElementById('buildDir').value;
+    const activeBlocks = masterBlocks.filter(b => b.isAllowed);
+    let sortedBlocks = activeBlocks.slice().sort((a, b) => a.sortValue - b.sortValue);
+    
+    generatedPhases = [];
+    
+    for (let L = 0; L < layers.length; L++) {
+        const layer = layers[L];
+        if (!layer.mappedPixels || layer.mappedPixels.length === 0) continue;
+        
+        const W = layer.dotWidth;
+        const H = layer.dotHeight;
+        const isLastLayer = (L === layers.length - 1) || !layers.slice(L+1).some(l => l.mappedPixels.length > 0);
+        
+        // Find valid column range
+        let firstCol = -1, lastCol = -1;
+        for (let x = 0; x < W; x++) {
+            for (let y = 0; y < H; y++) {
+                let idx = layer.mappedPixels[y * W + x];
+                if (idx !== -1 && masterBlocks[idx] && masterBlocks[idx].isAllowed) { firstCol = x; break; }
+            }
+            if (firstCol !== -1) break;
+        }
+        for (let x = W - 1; x >= 0; x--) {
+            for (let y = 0; y < H; y++) {
+                let idx = layer.mappedPixels[y * W + x];
+                if (idx !== -1 && masterBlocks[idx] && masterBlocks[idx].isAllowed) { lastCol = x; break; }
+            }
+            if (lastCol !== -1) break;
+        }
+        if (firstCol === -1) continue;
+        
+        // Highest valid Y per column
+        let actualHighestY = new Array(W).fill(H);
+        for (let x = firstCol; x <= lastCol; x++) {
+            for (let y = 0; y < H; y++) {
+                let idx = layer.mappedPixels[y * W + x];
+                if (idx !== -1 && masterBlocks[idx] && masterBlocks[idx].isAllowed) { actualHighestY[x] = y; break; }
+            }
+        }
+        
+        // Build job queues
+        let jobQueues = [];
+        if (buildDir === 'leftToRight') {
+            let cols = []; for (let x = firstCol; x <= lastCol; x++) cols.push(x);
+            jobQueues.push({ cols, dir: 'right', prefix: `L${L+1} 全体` });
+        } else {
+            let peakCol = firstCol, minHY = H;
+            for (let x = firstCol; x <= lastCol; x++) {
+                if (actualHighestY[x] < minHY) { minHY = actualHighestY[x]; peakCol = x; }
+            }
+            let rightCols = []; for (let x = peakCol; x <= lastCol; x++) rightCols.push(x);
+            let leftCols = []; for (let x = peakCol - 1; x >= firstCol; x--) leftCols.push(x);
+            if (rightCols.length > 0) jobQueues.push({ cols: rightCols, dir: 'right', prefix: `L${L+1} 前半(中央→右)` });
+            if (leftCols.length > 0) jobQueues.push({ cols: leftCols, dir: 'left', prefix: `L${L+1} 後半(中央→左)` });
+        }
+        
+        for (let jobIdx = 0; jobIdx < jobQueues.length; jobIdx++) {
+            const job = jobQueues[jobIdx];
+            const isLastJob = (jobIdx === jobQueues.length - 1);
+            
+            let scaffoldMap = [...actualHighestY];
+            for (let i = job.cols.length - 2; i >= 0; i--) {
+                let currX = job.cols[i], nextX = job.cols[i+1];
+                if (scaffoldMap[nextX] < scaffoldMap[currX]) scaffoldMap[currX] = scaffoldMap[nextX];
+            }
+            
+            let idx = 0;
+            while (idx < job.cols.length) {
+                let startIdx = idx, endIdx = idx;
+                let phaseNeeds = {};
+                
+                while (endIdx < job.cols.length) {
+                    let colNeeds = {}, x = job.cols[endIdx];
+                    let highestValidY = scaffoldMap[x];
+                    if (highestValidY < H) {
+                        for (let y = H - 1; y >= highestValidY; y--) {
+                            let bIdx = layer.mappedPixels[y * W + x];
+                            if (bIdx !== -1 && masterBlocks[bIdx] && masterBlocks[bIdx].isAllowed) {
+                                colNeeds[bIdx] = (colNeeds[bIdx] || 0) + 1;
+                            } else {
+                                colNeeds["TEMP"] = (colNeeds["TEMP"] || 0) + 1;
+                            }
+                        }
+                    }
+                    let tempNeeds = { ...phaseNeeds };
+                    for (let k in colNeeds) tempNeeds[k] = (tempNeeds[k] || 0) + colNeeds[k];
+                    let totalSlots = 0;
+                    for (let k in tempNeeds) if (tempNeeds[k] > 0) totalSlots += Math.ceil(tempNeeds[k] / 99);
+                    if (totalSlots > 120) {
+                        if (endIdx === startIdx) { alert(`列${job.cols[startIdx]+1}だけで120スロット超過！`); return; }
+                        break;
+                    } else { phaseNeeds = tempNeeds; endIdx++; }
+                }
+                
+                let inventory = [], slotIdx = 0;
+                sortedBlocks.forEach(b => {
+                    let count = phaseNeeds[b.globalIdx] || 0;
+                    if (count > 0) {
+                        let stacks = Math.ceil(count / 99), remaining = count;
+                        for (let i = 0; i < stacks; i++) {
+                            let amt = Math.min(remaining, 99);
+                            inventory.push({ globalIdx: b.globalIdx, amount: amt, slotIdx: slotIdx++, isBase: (i === 0) });
+                            remaining -= amt;
+                        }
+                    }
+                });
+                let tempCount = phaseNeeds["TEMP"] || 0;
+                if (tempCount > 0) {
+                    let stacks = Math.ceil(tempCount / 99), remaining = tempCount;
+                    for (let i = 0; i < stacks; i++) {
+                        let amt = Math.min(remaining, 99);
+                        inventory.push({ globalIdx: "TEMP", amount: amt, slotIdx: slotIdx++, isBase: false });
+                        remaining -= amt;
+                    }
+                }
+                
+                let phaseCols = job.cols.slice(startIdx, endIdx);
+                let isLastPhaseOfLayer = isLastJob && (endIdx === job.cols.length);
+                let label = `レイヤー${L+1} ${job.prefix} (列${phaseCols[0]+1}〜${phaseCols[phaseCols.length-1]+1})`;
+                
+                // Estimate time
+                let simInv = JSON.parse(JSON.stringify(inventory));
+                let totalMs = 2500, current_p = 0, current_r = 0, current_c = 0, last_slot = -1;
+                for (let ci = 0; ci < phaseCols.length; ci++) {
+                    let x = phaseCols[ci];
+                    let highestValidY = scaffoldMap[x];
+                    if (highestValidY < H) {
+                        for (let y = H - 1; y >= highestValidY; y--) {
+                            let bIdx = layer.mappedPixels[y * W + x];
+                            let isTemp = (bIdx === -1 || !masterBlocks[bIdx] || !masterBlocks[bIdx].isAllowed);
+                            let targetIdx = isTemp ? "TEMP" : bIdx;
+                            let slotIndex = simInv.findIndex(s => s.globalIdx === targetIdx && s.amount > 0);
+                            if (slotIndex !== -1) {
+                                simInv[slotIndex].amount--;
+                                let actualSlot = simInv[slotIndex].slotIdx;
+                                if (actualSlot !== last_slot) {
+                                    totalMs += 400;
+                                    let tp = Math.floor(actualSlot / 30), tr = Math.floor((actualSlot % 30) / 10), tc = (actualSlot % 30) % 10;
+                                    let p_diff = (tp - current_p + 4) % 4;
+                                    totalMs += (p_diff + Math.abs(tr - current_r) + Math.abs(tc - current_c)) * 140;
+                                    current_p = tp; current_r = tr; current_c = tc;
+                                    totalMs += 400; last_slot = actualSlot;
+                                }
+                                totalMs += 400;
+                            }
+                        }
+                    }
+                    totalMs += 9200;
+                }
+                let estMin = Math.floor(totalMs / 60000);
+                let estSec = Math.floor((totalMs % 60000) / 1000);
+                
+                generatedPhases.push({
+                    cols: phaseCols, direction: job.dir, inventory, highestYMap: scaffoldMap,
+                    label, phaseNeeds, timeStr: `約${estMin}分${estSec}秒`,
+                    layerIdx: L, dotWidth: W, dotHeight: H, mappedPixels: layer.mappedPixels,
+                    isLastPhaseOfLayer, isLastLayer,
+                    totalColsInLayer: lastCol - firstCol + 1
+                });
+                
+                idx = endIdx;
+            }
+        }
+    }
+    
+    if (generatedPhases.length === 0) { alert("有効なブロックが見つかりませんでした。"); return; }
+    
+    document.getElementById('macro-result-area').style.display = 'block';
+    let select = document.getElementById('phaseSelect');
+    select.innerHTML = '';
+    generatedPhases.forEach((p, i) => {
+        let opt = document.createElement('option');
+        opt.value = i; opt.text = `フェーズ ${i+1}: ${p.label}`;
+        select.appendChild(opt);
+    });
+    renderPhaseDisplay(0);
+}
+
+// ========== Arduino Code Rendering ==========
+function renderPhaseDisplay(phaseIndex) {
+    const phase = generatedPhases[parseInt(phaseIndex)];
+    if (!phase) return;
+    
+    document.getElementById('phase-time-str').textContent = phase.timeStr;
+    document.getElementById('direction-warning').style.display = (phase.direction === 'left') ? 'block' : 'none';
+    
+    const W = phase.dotWidth;
+    const H = phase.dotHeight;
+    const mappedPixels = phase.mappedPixels;
+    
+    let simInv = JSON.parse(JSON.stringify(phase.inventory));
+    let arrayStr = "";
+    
+    for (let i = 0; i < phase.cols.length; i++) {
+        let x = phase.cols[i];
+        arrayStr += `\n    // --- 列 ${x + 1} ---\n    `;
+        let colBytes = [];
+        let highestValidY = phase.highestYMap[x];
+        
+        if (highestValidY < H) {
+            for (let y = H - 1; y >= highestValidY; y--) {
+                let idx = mappedPixels[y * W + x];
+                let isTemp = (idx === -1 || !masterBlocks[idx] || !masterBlocks[idx].isAllowed);
+                let targetIdx = isTemp ? "TEMP" : idx;
+                let slotIndex = simInv.findIndex(s => s.globalIdx === targetIdx && s.amount > 0);
+                if (slotIndex !== -1) {
+                    simInv[slotIndex].amount--;
+                    colBytes.push(simInv[slotIndex].slotIdx);
+                }
+            }
+        }
+        colBytes.push(254);
+        arrayStr += colBytes.join(", ") + ",";
+    }
+    arrayStr += "\n    255 // 終了";
+    
+    const netFwdMs = parseInt(document.getElementById('netForwardMs').value) || 100;
+    const lateralMs = parseInt(document.getElementById('lateralMs').value) || 400;
+    const lateralDir = parseInt(document.getElementById('lateralDir').value);
+    
+    let transitionCode = '';
+    if (phase.isLastPhaseOfLayer && !phase.isLastLayer) {
+        const returnMs = phase.totalColsInLayer * netFwdMs;
+        transitionCode = `
+    // --- レイヤー遷移 ---
+    returnToStart(${returnMs});   // 列数${phase.totalColsInLayer} × 正味前進${netFwdMs}ms
+    nextLayer();                  // 横移動${lateralMs}ms`;
+    }
+    
+    let cppCode = `// Auto-generated by ぽこあ3Dドット絵メーカー
+// ============================================================
+// 【 フェーズ ${parseInt(phaseIndex)+1} / ${generatedPhases.length} 】 ${phase.label}
+// レイヤー ${phase.layerIdx+1}
+// ============================================================
+#include <auto_command_util.h>
+#include <avr/pgmspace.h>
+
+// タイミング設定（ゲームに合わせて調整してください）
+const int NET_FORWARD_MS_PER_COL = ${netFwdMs};
+const int LATERAL_MS = ${lateralMs};
+const int LATERAL_DIR = ${lateralDir}; // ${lateralDir > 0 ? '右方向' : '左方向'}
+
+// 建築データ (0〜119:インベントリスロット, 254:次の列へ, 255:終了)
+const uint8_t actions[] PROGMEM = {${arrayStr}
+};
+
+int current_p = 0, current_r = 0, current_c = 0, last_slot = -1;
+
+void openInv() { pushButton(Button::X, 100); delay(300); }
+
+void moveCursor(int target_slot) {
+    int tp = target_slot / 30;
+    int tr = (target_slot % 30) / 10;
+    int tc = (target_slot % 30) % 10;
+    while(current_p != tp) { pushButton(Button::R, 70); delay(70); current_p = (current_p+1)%4; }
+    while(current_r < tr) { pushHatButton(Hat::DOWN, 70); delay(70); current_r++; }
+    while(current_r > tr) { pushHatButton(Hat::UP, 70); delay(70); current_r--; }
+    while(current_c < tc) { pushHatButton(Hat::RIGHT, 70); delay(70); current_c++; }
+    while(current_c > tc) { pushHatButton(Hat::LEFT, 70); delay(70); current_c--; }
+}
+
+void place(int slot) {
+    if (slot != last_slot) {
+        openInv();
+        moveCursor(slot);
+        pushButton(Button::A, 100);
+        delay(300);
+        last_slot = slot;
+    }
+    pushButton(Button::A, 100);
+    delay(300);
+}
+
+void nextCol() {
+    SwitchController().setStickTiltRatio(0, 100, 0, 0);
+    delay(550);
+    SwitchController().setStickTiltRatio(0, 0, 0, 0);
+    delay(8000);
+    SwitchController().setStickTiltRatio(0, -100, 0, 0);
+    delay(450);
+    SwitchController().setStickTiltRatio(0, 0, 0, 0);
+    delay(200);
+}
+
+// レイヤー遷移: 列方向を戻る
+void returnToStart(int returnMs) {
+    SwitchController().setStickTiltRatio(0, -100, 0, 0);
+    delay(returnMs);
+    SwitchController().setStickTiltRatio(0, 0, 0, 0);
+    delay(500);
+}
+
+// レイヤー遷移: 横方向に1レイヤー移動
+void nextLayer() {
+    SwitchController().setStickTiltRatio(LATERAL_DIR, 0, 0, 0);
+    delay(LATERAL_MS);
+    SwitchController().setStickTiltRatio(0, 0, 0, 0);
+    delay(200);
+}
+
+void setup() {
+    SwitchController().setStickTiltRatio(0, 0, 0, 0);
+    delay(500);
+    for(int i=0; i<10; i++){ pushButton(Button::B, 100); delay(100); }
+}
+
+void loop() {
+    static bool isFinished = false;
+    if (isFinished) { delay(1000); return; }
+
+    int i = 0;
+    while(true) {
+        uint8_t act = pgm_read_byte(&actions[i]);
+        if (act == 255) { break; }
+        else if (act == 254) { nextCol(); }
+        else { place(act); }
+        i++;
+    }
+${transitionCode}
+    isFinished = true;
+}
+`;
+    
+    document.getElementById('macro-code').value = cppCode;
+    
+    // Inventory list
+    let needsHtml = "<div style='display:flex;flex-wrap:wrap;gap:8px;'>";
+    let sortedKeys = Object.keys(phase.phaseNeeds).sort((a, b) => {
+        if (a === "TEMP") return 1; if (b === "TEMP") return -1;
+        return (masterBlocks[a] ? masterBlocks[a].sortValue : 0) - (masterBlocks[b] ? masterBlocks[b].sortValue : 0);
+    });
+    for (let k of sortedKeys) {
+        if (phase.phaseNeeds[k] > 0) {
+            let bName = k === "TEMP" ? "🟫 仮ブロック" : `<span style='color:#8e44ad;'>${masterBlocks[k].categoryName}</span>(${masterBlocks[k].name})`;
+            needsHtml += `<div style='background:#fff;border:1px solid #ccc;padding:4px 8px;border-radius:4px;font-size:11px;'>${bName}: <b style='color:#e74c3c;'>${phase.phaseNeeds[k]}</b></div>`;
+        }
+    }
+    needsHtml += "</div>";
+    document.getElementById('phase-needs-summary').innerHTML = needsHtml;
+    
+    let listHtml = '';
+    phase.inventory.forEach(s => {
+        let p = Math.floor(s.slotIdx / 30) + 1;
+        let r = Math.floor((s.slotIdx % 30) / 10) + 1;
+        let c = (s.slotIdx % 30) % 10 + 1;
+        let bName, bSrc;
+        if (s.globalIdx === "TEMP") { bName = "🟫 仮ブロック"; bSrc = ''; }
+        else { bName = `${masterBlocks[s.globalIdx].categoryName}(${masterBlocks[s.globalIdx].name})`; bSrc = masterBlocks[s.globalIdx].src; }
+        let slotType = s.isBase ? "<span style='color:#3498db;font-weight:bold;'>[1枠目]</span>" : "<span style='color:#e67e22;'>[続き]</span>";
+        listHtml += `<div class="slot-item"><span style="width:100px;font-weight:bold;color:#2980b9;">P${p}-${r}行${c}列:</span>
+            <span style="font-size:11px;width:50px;">${slotType}</span>
+            ${bSrc ? `<img class="slot-img" src="${bSrc}" style="background:#bdc3c7;">` : ''}
+            <span style="flex-grow:1;font-size:11px;">${bName}</span>
+            <span style="color:#e74c3c;font-weight:bold;">×${s.amount}</span></div>`;
+    });
+    document.getElementById('macro-inventory-list').innerHTML = listHtml;
+}
+
+function copyMacroCode() {
+    const codeArea = document.getElementById('macro-code');
+    codeArea.select();
+    navigator.clipboard.writeText(codeArea.value).then(() => {
+        const btn = document.getElementById('copy-btn');
+        const orig = btn.innerHTML;
+        btn.innerHTML = "✅ コピー完了！"; btn.style.backgroundColor = "#27ae60";
+        setTimeout(() => { btn.innerHTML = orig; btn.style.backgroundColor = ''; }, 2000);
+    });
+}
+
+function closeModal() { document.getElementById('previewModal').style.display = 'none'; }
+
+// ========== Canvas interaction ==========
+const wrapper = document.getElementById('canvas-wrapper');
+const tooltip = document.getElementById('canvasTooltip');
+let isDragging = false, startX, startY, scrollLeft, scrollTop;
+wrapper.addEventListener('mousedown', e => {
+    isDragging = true;
+    startX = e.pageX - wrapper.offsetLeft; startY = e.pageY - wrapper.offsetTop;
+    scrollLeft = wrapper.scrollLeft; scrollTop = wrapper.scrollTop;
+    wrapper.style.cursor = 'grabbing';
+});
+wrapper.addEventListener('mouseup', () => { isDragging = false; wrapper.style.cursor = 'grab'; });
+wrapper.addEventListener('mouseleave', () => { isDragging = false; wrapper.style.cursor = 'grab'; });
+wrapper.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    e.preventDefault();
+    const walkX = (e.pageX - wrapper.offsetLeft - startX) * 1.5;
+    const walkY = (e.pageY - wrapper.offsetTop - startY) * 1.5;
+    wrapper.scrollLeft = scrollLeft - walkX;
+    wrapper.scrollTop = scrollTop - walkY;
+});
+wrapper.addEventListener('wheel', e => {
+    e.preventDefault();
+    const slider = document.getElementById('zoomSlider');
+    let scale = parseFloat(slider.value);
+    scale = e.deltaY < 0 ? Math.min(5, scale + 0.1) : Math.max(0.2, scale - 0.1);
+    slider.value = scale.toFixed(1); updateZoom();
+}, { passive: false });
+
+const outCanvas = document.getElementById('outCanvas');
+outCanvas.addEventListener('mousemove', e => {
+    if (currentLayerIdx < 0) return;
+    const layer = layers[currentLayerIdx];
+    if (!layer.mappedPixels || layer.mappedPixels.length === 0) { tooltip.style.display = 'none'; return; }
+    const scale = parseFloat(document.getElementById('zoomSlider').value);
+    const col = Math.floor((e.offsetX / scale) / CELL_SIZE);
+    const row = Math.floor((e.offsetY / scale) / CELL_SIZE);
+    if (col >= 0 && col < layer.dotWidth && row >= 0 && row < layer.dotHeight) {
+        const idx = layer.mappedPixels[row * layer.dotWidth + col];
+        if (idx !== -1 && masterBlocks[idx]) {
+            tooltip.innerHTML = `No.${masterBlocks[idx].displayNum} ${masterBlocks[idx].categoryName}(${masterBlocks[idx].name})`;
+            tooltip.style.display = 'block'; tooltip.style.left = (e.pageX + 15) + 'px'; tooltip.style.top = (e.pageY + 15) + 'px';
+        } else tooltip.style.display = 'none';
+    } else tooltip.style.display = 'none';
+});
+outCanvas.addEventListener('mouseleave', () => tooltip.style.display = 'none');
+</script>
+</body>
+</html>
