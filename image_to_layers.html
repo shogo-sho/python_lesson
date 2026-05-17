@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>2D → レイヤービューア</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -110,7 +111,7 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 <div id="settings">
   <div class="sg">
     <label>ブロックサイズ</label>
-    <input type="range" id="blockSize" min="4" max="64" value="16" step="2">
+    <input type="range" id="blockSize" min="1" max="64" value="16" step="1">
     <div class="val"><span id="blockSizeVal">16</span> px</div>
   </div>
   <div class="sg">
@@ -155,6 +156,11 @@ button:disabled { opacity: .35; cursor: not-allowed; }
 
   <div id="speedRow">
     再生速度 <input type="range" id="speed" min="50" max="600" value="150" step="25"> <span id="speedVal">150</span>ms
+  </div>
+
+  <div class="btn-row">
+    <button id="dlCurrentBtn" disabled>⬇ このレイヤーをDL</button>
+    <button id="dlAllBtn"     disabled>📦 全レイヤーをZIPでDL</button>
   </div>
 
   <div id="info">画像を読み込んで「変換」を押してください</div>
@@ -248,61 +254,75 @@ function build() {
   const cols = Math.ceil(canvasW / blockSize);
   const rows = Math.ceil(canvasH / blockSize);
 
-  // Pre-compute layer weights (sphere cross-section formula)
-  // Layer i is at z_i in [-1, +1]; weight = cross-section area ∝ 1 - z²
-  const weights = [];
-  for (let i = 0; i < numLayers; i++) {
-    const z = 2 * i / (numLayers - 1) - 1;  // -1 to +1
-    let w;
-    if (shape === 'sphere') {
-      w = Math.max(0, 1 - z * z);          // parabola → sphere cross-section
-    } else if (shape === 'lens') {
-      w = Math.max(0, 1 - Math.abs(z));    // tent → shallower front/back
-    } else {
-      // Gauss
-      w = Math.exp(-4 * z * z);            // Gaussian
-    }
-    weights.push(w);
-  }
-  // Build cumulative weights for sampling
-  const cumW = [];
-  let sum = 0;
-  for (const w of weights) { sum += w; cumW.push(sum); }
-
-  layerBlocks = Array.from({length: numLayers}, () => []);
-  totalBlocks = 0;
-
+  // ── Step 1: 全ブロックの色と中心からの距離を収集 ────────────────────
+  const allBlocks = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
-      const bx = col * blockSize + blockSize / 2;
-      const by = row * blockSize + blockSize / 2;
-
-      // Normalized distance from center (0 = center, 1 = farthest corner)
-      const dx = (bx - cx) / maxDist;
-      const dy = (by - cy) / maxDist;
-      const r = Math.sqrt(dx * dx + dy * dy);  // 0..1
-
-      // z_max for this block: blocks closer to center have wider z range
-      // → they can be assigned to any layer (including tips)
-      // → blocks at corners (r≈1) can only go near z=0 (middle layers)
-      const zMax = Math.sqrt(Math.max(0, 1 - r * r));
-
-      // Sample z uniformly in [-zMax, +zMax], then pick the layer
-      const z = (rand() * 2 - 1) * zMax;
-
-      // Map z ∈ [-1, 1] → layer index
-      const layerIdx = Math.min(numLayers - 1,
-        Math.max(0, Math.floor((z + 1) / 2 * numLayers)));
-
-      // Average color of this block from the source image
       const [r2, g2, b2, a2] = sampleBlock(imgData, canvasW, canvasH,
         col * blockSize, row * blockSize, blockSize);
-
-      // Skip fully transparent blocks
       if (a2 < 4) continue;
 
-      layerBlocks[layerIdx].push({ col, row, r: r2, g: g2, b: b2, a: a2 });
-      totalBlocks++;
+      const bx = col * blockSize + blockSize / 2;
+      const by = row * blockSize + blockSize / 2;
+      const dist = Math.sqrt(((bx - cx) / maxDist) ** 2 + ((by - cy) / maxDist) ** 2);
+      allBlocks.push({ col, row, r: r2, g: g2, b: b2, a: a2, dist });
+    }
+  }
+  totalBlocks = allBlocks.length;
+
+  // ── Step 2: 距離順にソート（中心 → 端）────────────────────────────
+  allBlocks.sort((a, b) => a.dist - b.dist);
+
+  // ── Step 3: 位相（phase）ごとにブロック数を決定 ────────────────────
+  // 位相の数: ceil(N/2)
+  // 位相0 = 先端（Layer 0 と Layer N-1）← 中心ブロック
+  // 位相P-1 = 中間（Layer P-1 と Layer N-P、または奇数なら1枚）← 端ブロック
+  const P = Math.ceil(numLayers / 2);
+
+  // 各位相の重み: 先端が少なく中間が多い（球体断面積モデル）
+  // 位相p=0が先端(z≈1)、p=P-1が中間(z≈0)
+  const phaseWeights = Array.from({length: P}, (_, p) => {
+    const z = 1 - p / (P > 1 ? P - 1 : 1); // 1(先端) → 0(中間)
+    let w;
+    if (shape === 'sphere') w = Math.max(0.04, 1 - z * z);
+    else if (shape === 'lens') w = Math.max(0.04, 1 - Math.abs(z));
+    else w = Math.max(0.04, Math.exp(-4 * z * z)); // gauss
+    return w;
+  });
+  const phaseWeightSum = phaseWeights.reduce((a, b) => a + b, 0);
+
+  // 位相ごとの正確なブロック数
+  const phaseSizes = phaseWeights.map(w => Math.floor(w / phaseWeightSum * totalBlocks));
+  phaseSizes[P - 1] += totalBlocks - phaseSizes.reduce((a, b) => a + b, 0); // 端数補正
+
+  // ── Step 4: 位相ごとにブロックを割り当て ───────────────────────────
+  // 各位相のブロック群をシャッフルし、前半球(Layer p)と後半球(Layer N-1-p)に半々で振り分ける
+  layerBlocks = Array.from({length: numLayers}, () => []);
+  let offset = 0;
+
+  for (let p = 0; p < P; p++) {
+    const size = phaseSizes[p];
+    const group = allBlocks.slice(offset, offset + size);
+    offset += size;
+
+    // 位相内でシャッフル（前後に偏りなく振り分けるため）
+    for (let i = group.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [group[i], group[j]] = [group[j], group[i]];
+    }
+
+    const frontLayer = p;
+    const backLayer  = numLayers - 1 - p;
+
+    if (frontLayer === backLayer) {
+      // 奇数レイヤーの真ん中: 1枚だけ
+      for (const b of group) layerBlocks[frontLayer].push(b);
+    } else {
+      // 前後に交互に振り分け
+      for (let i = 0; i < group.length; i++) {
+        if (i % 2 === 0) layerBlocks[frontLayer].push(group[i]);
+        else             layerBlocks[backLayer].push(group[i]);
+      }
     }
   }
 
@@ -317,6 +337,7 @@ function build() {
   viewer.style.display = 'flex';
   playBtn.disabled = false;
   renderLayer(0);
+  enableDownload();
 }
 
 function sampleBlock(imgData, W, H, x0, y0, bs) {
@@ -416,6 +437,63 @@ speedEl.addEventListener('input', () => {
     }, +speedEl.value);
   }
 });
+
+// ── Download ────────────────────────────────────────────────────────
+const dlCurrentBtn = document.getElementById('dlCurrentBtn');
+const dlAllBtn     = document.getElementById('dlAllBtn');
+
+// 1レイヤー分を透過PNGとして描画してURLを返す
+function renderLayerToPNG(idx) {
+  const tmp = document.createElement('canvas');
+  tmp.width = canvasW; tmp.height = canvasH;
+  const ctx = tmp.getContext('2d');
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  for (const b of layerBlocks[idx]) {
+    const x = b.col * blockSize, y = b.row * blockSize;
+    ctx.fillStyle = `rgba(${b.r|0},${b.g|0},${b.b|0},${(b.a/255).toFixed(3)})`;
+    ctx.fillRect(x, y, blockSize, blockSize);
+  }
+  return tmp.toDataURL('image/png');
+}
+
+// 現在のレイヤーをDL
+dlCurrentBtn.addEventListener('click', () => {
+  const url = renderLayerToPNG(currentLayer);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `layer_${String(currentLayer).padStart(3,'0')}.png`;
+  a.click();
+});
+
+// 全レイヤーをZIPでDL
+dlAllBtn.addEventListener('click', async () => {
+  dlAllBtn.disabled = true;
+  dlAllBtn.textContent = '⏳ 生成中…';
+
+  const zip = new JSZip();
+  for (let i = 0; i < numLayers; i++) {
+    const dataUrl = renderLayerToPNG(i);
+    const base64 = dataUrl.split(',')[1];
+    zip.file(`layer_${String(i).padStart(3,'0')}.png`, base64, { base64: true });
+  }
+
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'layers.zip';
+  a.click();
+  URL.revokeObjectURL(url);
+
+  dlAllBtn.disabled = false;
+  dlAllBtn.textContent = '📦 全レイヤーをZIPでDL';
+});
+
+// 変換後にDLボタンを有効化（buildBtn クリック時に呼ばれる箇所へ）
+function enableDownload() {
+  dlCurrentBtn.disabled = false;
+  dlAllBtn.disabled = false;
+}
 </script>
 </body>
 </html>
