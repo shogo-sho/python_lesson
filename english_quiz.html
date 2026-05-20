@@ -172,6 +172,17 @@
   .next-btn { background: linear-gradient(135deg, #4caf50, #2e7d32); color: #fff; display: none; }
   .skip-btn { background: rgba(255,255,255,0.08); color: #aaa; border: 1px solid rgba(255,255,255,0.15); flex: 0 0 auto; padding: 12px 18px; }
   .skip-btn:hover { background: rgba(255,255,255,0.15); }
+  .speak-btn {
+    display: block; margin: 0 auto 14px;
+    padding: 7px 20px;
+    background: rgba(126,200,227,0.12);
+    border: 1px solid rgba(126,200,227,0.4);
+    border-radius: 20px;
+    color: #7ec8e3; font-size: 0.88rem; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .speak-btn:hover { background: rgba(126,200,227,0.25); }
+  .speak-btn.speaking { border-color: #f0a500; color: #f0a500; background: rgba(240,165,0,0.12); }
 
   .feedback {
     margin-top: 14px;
@@ -282,6 +293,15 @@
     <input type="range" class="count-slider" id="countSlider" min="5" max="100" value="20" step="5">
   </div>
 
+  <div class="option-group">
+    <label>🔊 発音（英語読み上げ）</label>
+    <div class="radio-row">
+      <div class="radio-btn selected" data-group="autoSpeak" data-val="auto">自動で発音</div>
+      <div class="radio-btn" data-group="autoSpeak" data-val="manual">ボタンで発音</div>
+      <div class="radio-btn" data-group="autoSpeak" data-val="off">発音なし</div>
+    </div>
+  </div>
+
   <button class="start-btn" id="startBtn">スタート！</button>
 </div>
 
@@ -303,6 +323,7 @@
   <div class="card">
     <span class="mode-badge" id="modeBadge"></span>
     <div class="question-word" id="questionWord"></div>
+    <button class="speak-btn" id="speakBtn" onclick="speakCurrent()" style="display:none;">🔊 発音を聞く</button>
     <div class="question-note" id="questionNote"></div>
 
     <div class="hint-row">
@@ -1877,7 +1898,7 @@ const WORDS = [
 // =====================================================================
 // STATE
 // =====================================================================
-let settings = { mode:"en2jp", level:"all", count:20 };
+let settings = { mode:"en2jp", level:"all", count:20, autoSpeak:"auto" };
 let queue = [];
 let current = 0;
 let stats = { correct:0, incorrect:0, hints:0 };
@@ -1903,6 +1924,47 @@ const countVal = document.getElementById('countVal');
 countSlider.addEventListener('input', () => { countVal.textContent = countSlider.value; });
 
 document.getElementById('startBtn').addEventListener('click', startQuiz);
+
+// =====================================================================
+// SPEECH SYNTHESIS
+// =====================================================================
+function speak(text) {
+  if (!('speechSynthesis' in window) || settings.autoSpeak === 'off') return;
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance(text);
+  utter.lang = 'en-US';
+  utter.rate = 0.85;
+  utter.pitch = 1.0;
+  const btn = document.getElementById('speakBtn');
+  if (btn) {
+    btn.classList.add('speaking');
+    btn.textContent = '🔊 読み上げ中...';
+    utter.onend = () => {
+      btn.classList.remove('speaking');
+      btn.textContent = '🔊 発音を聞く';
+    };
+  }
+  window.speechSynthesis.speak(utter);
+}
+
+function speakCurrent() {
+  const w = queue[current];
+  if (w) {
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(w.en);
+    utter.lang = 'en-US';
+    utter.rate = 0.85;
+    utter.pitch = 1.0;
+    const btn = document.getElementById('speakBtn');
+    btn.classList.add('speaking');
+    btn.textContent = '🔊 読み上げ中...';
+    utter.onend = () => {
+      btn.classList.remove('speaking');
+      btn.textContent = '🔊 発音を聞く';
+    };
+    window.speechSynthesis.speak(utter);
+  }
+}
 
 function startQuiz() {
   let pool = WORDS.filter(w => {
@@ -1958,6 +2020,23 @@ function renderQuestion() {
   }
 
   document.getElementById('questionWord').textContent = mode === 'en2jp' ? w.en : w.jp;
+
+  // Speak button
+  const speakBtn = document.getElementById('speakBtn');
+  speakBtn.classList.remove('speaking');
+  speakBtn.textContent = '🔊 発音を聞く';
+  if (settings.autoSpeak !== 'off') {
+    if (mode === 'en2jp') {
+      // 英語が問題文 → ボタン表示 & 自動読み上げ
+      speakBtn.style.display = 'block';
+      if (settings.autoSpeak === 'auto') setTimeout(() => speak(w.en), 300);
+    } else {
+      // 日本語が問題文 → 答えを教えてしまうので非表示
+      speakBtn.style.display = 'none';
+    }
+  } else {
+    speakBtn.style.display = 'none';
+  }
 
   // Hints
   document.getElementById('hintDisplay').textContent = '';
@@ -2058,6 +2137,14 @@ function checkAnswer() {
   document.getElementById('nextBtn').style.display = 'block';
   document.getElementById('correctCount').textContent = stats.correct;
   document.getElementById('incorrectCount').textContent = stats.incorrect;
+
+  // 答え合わせ後：英単語の発音を聞けるようにする
+  const speakBtn = document.getElementById('speakBtn');
+  if (settings.autoSpeak !== 'off') {
+    speakBtn.style.display = 'block';
+    speakBtn.textContent = '🔊 発音を聞く';
+    if (settings.autoSpeak === 'auto') setTimeout(() => speak(w.en), 600);
+  }
 }
 
 function skipQuestion() {
@@ -2079,6 +2166,14 @@ function skipQuestion() {
   document.getElementById('submitBtn').style.display = 'none';
   document.getElementById('nextBtn').style.display = 'block';
   document.getElementById('incorrectCount').textContent = stats.incorrect;
+
+  // スキップ後も英単語の発音を聞けるようにする
+  const speakBtnSkip = document.getElementById('speakBtn');
+  if (settings.autoSpeak !== 'off') {
+    speakBtnSkip.style.display = 'block';
+    speakBtnSkip.textContent = '🔊 発音を聞く';
+    if (settings.autoSpeak === 'auto') setTimeout(() => speak(w.en), 600);
+  }
 }
 
 function nextQuestion() {
