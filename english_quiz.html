@@ -1928,42 +1928,60 @@ document.getElementById('startBtn').addEventListener('click', startQuiz);
 // =====================================================================
 // SPEECH SYNTHESIS
 // =====================================================================
-function speak(text) {
-  if (!('speechSynthesis' in window) || settings.autoSpeak === 'off') return;
+let enVoice = null;
+
+function loadVoices() {
+  if (!('speechSynthesis' in window)) return;
+  const all = window.speechSynthesis.getVoices();
+  // 優先順位: en-US > en-GB > en-* > 何でも英語
+  enVoice =
+    all.find(v => v.lang === 'en-US') ||
+    all.find(v => v.lang === 'en-GB') ||
+    all.find(v => v.lang.startsWith('en')) ||
+    null;
+}
+
+if ('speechSynthesis' in window) {
+  loadVoices();
+  // Firefox / 一部ブラウザは非同期で声リストを読み込む
+  window.speechSynthesis.onvoiceschanged = loadVoices;
+}
+
+function _doSpeak(text) {
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'en-US';
   utter.rate = 0.85;
   utter.pitch = 1.0;
+  if (enVoice) utter.voice = enVoice;
+
   const btn = document.getElementById('speakBtn');
   if (btn) {
     btn.classList.add('speaking');
     btn.textContent = '🔊 読み上げ中...';
-    utter.onend = () => {
+    const reset = () => {
       btn.classList.remove('speaking');
       btn.textContent = '🔊 発音を聞く';
     };
+    utter.onend = reset;
+    utter.onerror = reset;
   }
   window.speechSynthesis.speak(utter);
 }
 
+function speak(text) {
+  if (!('speechSynthesis' in window) || settings.autoSpeak === 'off') return;
+  // Firefox は声リストが遅延ロードされるため再取得してから発音
+  if (!enVoice) loadVoices();
+  _doSpeak(text);
+}
+
 function speakCurrent() {
+  if (!('speechSynthesis' in window)) return;
   const w = queue[current];
-  if (w) {
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(w.en);
-    utter.lang = 'en-US';
-    utter.rate = 0.85;
-    utter.pitch = 1.0;
-    const btn = document.getElementById('speakBtn');
-    btn.classList.add('speaking');
-    btn.textContent = '🔊 読み上げ中...';
-    utter.onend = () => {
-      btn.classList.remove('speaking');
-      btn.textContent = '🔊 発音を聞く';
-    };
-    window.speechSynthesis.speak(utter);
-  }
+  if (!w) return;
+  if (!enVoice) loadVoices();
+  _doSpeak(w.en);
 }
 
 function startQuiz() {
