@@ -259,6 +259,19 @@
     color: #c9d6df; font-size: 0.95rem; cursor: pointer; transition: all 0.2s;
   }
   .home-btn:hover { background: rgba(255,255,255,0.1); }
+  .voice-select {
+    width: 100%; padding: 10px 12px;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 10px; color: #c9d6df;
+    font-size: 0.88rem; outline: none; cursor: pointer;
+    appearance: none; -webkit-appearance: none;
+  }
+  .voice-select:focus { border-color: #7ec8e3; }
+  .voice-select option { background: #1a1a2e; color: #c9d6df; }
+  .rate-row { display: flex; align-items: center; gap: 10px; }
+  .rate-row .count-slider { flex: 1; }
+  .rate-val { color: #7ec8e3; font-weight: bold; min-width: 36px; text-align: right; }
 </style>
 </head>
 <body>
@@ -299,6 +312,18 @@
       <div class="radio-btn selected" data-group="autoSpeak" data-val="auto">自動で発音</div>
       <div class="radio-btn" data-group="autoSpeak" data-val="manual">ボタンで発音</div>
       <div class="radio-btn" data-group="autoSpeak" data-val="off">発音なし</div>
+    </div>
+  </div>
+
+  <div class="option-group" id="voiceGroup">
+    <label>🎙 音声を選択</label>
+    <select class="voice-select" id="voiceSelect"></select>
+  </div>
+
+  <div class="option-group" id="rateGroup">
+    <label>⏱ 読み上げ速度：<span class="rate-val" id="rateVal">普通</span></label>
+    <div class="rate-row">
+      <input type="range" class="count-slider" id="rateSlider" min="0.5" max="1.5" value="0.85" step="0.05">
     </div>
   </div>
 
@@ -1928,22 +1953,83 @@ document.getElementById('startBtn').addEventListener('click', startQuiz);
 // =====================================================================
 // SPEECH SYNTHESIS
 // =====================================================================
-let enVoice = null;
+let allEnVoices = [];
+let selectedVoice = null;
+
+// 音声の品質スコア（高いほど良い）
+function voiceScore(v) {
+  const n = v.name.toLowerCase();
+  if (n.includes('enhanced')) return 4;  // macOS Enhanced（最高品質）
+  if (n.includes('premium'))  return 3;
+  if (n.includes('google'))   return 2;  // Chrome Google TTS
+  if (n.includes('microsoft') && !n.includes('zira')) return 2;
+  return 1;
+}
 
 function loadVoices() {
   if (!('speechSynthesis' in window)) return;
   const all = window.speechSynthesis.getVoices();
-  // 優先順位: en-US > en-GB > en-* > 何でも英語
-  enVoice =
-    all.find(v => v.lang === 'en-US') ||
-    all.find(v => v.lang === 'en-GB') ||
-    all.find(v => v.lang.startsWith('en')) ||
-    null;
+  // 英語音声だけ抽出し、品質スコア順に並べる
+  allEnVoices = all
+    .filter(v => v.lang.startsWith('en'))
+    .sort((a, b) => voiceScore(b) - voiceScore(a));
+
+  populateVoiceSelect();
+
+  // 未選択 or 以前の選択がリストから消えた場合はデフォルトを選ぶ
+  if (!selectedVoice || !allEnVoices.includes(selectedVoice)) {
+    selectedVoice = allEnVoices[0] || null;
+  }
 }
+
+function populateVoiceSelect() {
+  const sel = document.getElementById('voiceSelect');
+  if (!sel) return;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (allEnVoices.length === 0) {
+    sel.innerHTML = '<option value="">（利用可能な音声がありません）</option>';
+    return;
+  }
+  allEnVoices.forEach((v, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    const badge = voiceScore(v) >= 3 ? ' ★高品質' : voiceScore(v) === 2 ? ' ☆' : '';
+    opt.textContent = `${v.name} (${v.lang})${badge}`;
+    sel.appendChild(opt);
+  });
+  // 前の選択を復元
+  if (prev !== '' && sel.options[prev]) sel.value = prev;
+}
+
+// 速度ラベル
+const rateSlider = document.getElementById('rateSlider');
+const rateValEl  = document.getElementById('rateVal');
+function updateRateLabel(v) {
+  const f = parseFloat(v);
+  rateValEl.textContent = f <= 0.6 ? 'とても遅い' : f <= 0.75 ? '遅い' : f <= 0.95 ? '普通' : f <= 1.15 ? '速い' : 'とても速い';
+}
+if (rateSlider) {
+  rateSlider.addEventListener('input', () => updateRateLabel(rateSlider.value));
+  updateRateLabel(rateSlider.value);
+}
+
+// 音声セレクター変更
+document.getElementById('voiceSelect')?.addEventListener('change', function() {
+  selectedVoice = allEnVoices[parseInt(this.value)] || null;
+});
+
+// autoSpeak が off のとき音声UIを半透明に
+document.querySelectorAll('.radio-btn[data-group="autoSpeak"]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const isOff = btn.dataset.val === 'off';
+    document.getElementById('voiceGroup').style.opacity = isOff ? '0.4' : '1';
+    document.getElementById('rateGroup').style.opacity  = isOff ? '0.4' : '1';
+  });
+});
 
 if ('speechSynthesis' in window) {
   loadVoices();
-  // Firefox / 一部ブラウザは非同期で声リストを読み込む
   window.speechSynthesis.onvoiceschanged = loadVoices;
 }
 
@@ -1951,9 +2037,9 @@ function _doSpeak(text) {
   window.speechSynthesis.cancel();
   const utter = new SpeechSynthesisUtterance(text);
   utter.lang = 'en-US';
-  utter.rate = 0.85;
+  utter.rate = rateSlider ? parseFloat(rateSlider.value) : 0.85;
   utter.pitch = 1.0;
-  if (enVoice) utter.voice = enVoice;
+  if (selectedVoice) utter.voice = selectedVoice;
 
   const btn = document.getElementById('speakBtn');
   if (btn) {
@@ -1971,8 +2057,7 @@ function _doSpeak(text) {
 
 function speak(text) {
   if (!('speechSynthesis' in window) || settings.autoSpeak === 'off') return;
-  // Firefox は声リストが遅延ロードされるため再取得してから発音
-  if (!enVoice) loadVoices();
+  if (allEnVoices.length === 0) loadVoices();
   _doSpeak(text);
 }
 
@@ -1980,7 +2065,7 @@ function speakCurrent() {
   if (!('speechSynthesis' in window)) return;
   const w = queue[current];
   if (!w) return;
-  if (!enVoice) loadVoices();
+  if (allEnVoices.length === 0) loadVoices();
   _doSpeak(w.en);
 }
 
