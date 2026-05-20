@@ -317,7 +317,13 @@
 
   <div class="option-group" id="voiceGroup">
     <label>🎙 音声を選択</label>
-    <select class="voice-select" id="voiceSelect"></select>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <select class="voice-select" id="voiceSelect" style="flex:1;"></select>
+      <button id="previewBtn" onclick="previewVoice()"
+        style="padding:9px 14px; border:1px solid rgba(255,255,255,0.2); border-radius:10px;
+               background:rgba(255,255,255,0.07); color:#c9d6df; font-size:0.85rem;
+               cursor:pointer; white-space:nowrap; flex-shrink:0;">▶ 試し聞き</button>
+    </div>
   </div>
 
   <div class="option-group" id="rateGroup">
@@ -2017,7 +2023,28 @@ if (rateSlider) {
 // 音声セレクター変更
 document.getElementById('voiceSelect')?.addEventListener('change', function() {
   selectedVoice = allEnVoices[parseInt(this.value)] || null;
+  previewVoice(); // 選んだらすぐ試し聞き
 });
+
+function previewVoice() {
+  if (!('speechSynthesis' in window)) return;
+  if (allEnVoices.length === 0) { loadVoices(); return; }
+  const btn = document.getElementById('previewBtn');
+  window.speechSynthesis.cancel();
+  const utter = new SpeechSynthesisUtterance('Hello! This is a sample of the selected voice.');
+  utter.lang = 'en-US';
+  utter.rate = rateSlider ? parseFloat(rateSlider.value) : 0.85;
+  utter.pitch = 1.0;
+  if (selectedVoice) utter.voice = selectedVoice;
+  if (btn) {
+    btn.textContent = '🔊 再生中...';
+    btn.disabled = true;
+    const reset = () => { btn.textContent = '▶ 試し聞き'; btn.disabled = false; };
+    utter.onend = reset;
+    utter.onerror = reset;
+  }
+  window.speechSynthesis.speak(utter);
+}
 
 // autoSpeak が off のとき音声UIを半透明に
 document.querySelectorAll('.radio-btn[data-group="autoSpeak"]').forEach(btn => {
